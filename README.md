@@ -1,2 +1,0 @@
-# TMTelemetry
-TrackMania Telemetry Monitor
