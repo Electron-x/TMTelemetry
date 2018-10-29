@@ -45,6 +45,10 @@ const TCHAR szCheckpoint[] = TEXT("CP %d");
 const TCHAR szRaceTime[] = TEXT("Race Time");
 const TCHAR szTopSpeed[] = TEXT("Top Speed");
 const TCHAR szRespawns[] = TEXT("Respawns");
+const TCHAR szRumbles[] = TEXT("Rumbles");
+const TCHAR szGearchanges[] = TEXT("Gearchanges");
+const TCHAR szBrakesUsed[] = TEXT("Brakes Used");
+const TCHAR szFullspeed[] = TEXT("Fullspeed");
 
 // General functions
 BOOL FormatTime(LPTSTR lpszTime, SIZE_T cchStringLen, int nTime);

@@ -11,32 +11,40 @@ using namespace NManiaPlanet;
 #ifndef WM_DPICHANGED
 #define WM_DPICHANGED 0x02E0
 #endif
-#define MAX_LOADSTRING	256
-#define SUSPEND_PERIOD	5	// Timer resolution in milliseconds for Sleep
+#define MAX_LOADSTRING		256
+#define SUSPEND_PERIOD		5	// Timer resolution in milliseconds for Sleep
+#define RUMBLE_THRESHOLD	1	// Rumble intensity threshold in percent
+#define FULLSPEED_THRESHOLD	85	// Full throttle threshold in percent
 
 // String constants:
-const TCHAR szMPTelemetry[] = TEXT("ManiaPlanet_Telemetry");			// File mapping object name
-const TCHAR szTelemetryVer[] = TEXT("Telemetry Interface Version: %u");	// Format string for the About box
-const TCHAR szSuspendPeriod[] = TEXT("SuspendPeriod");					// Registry value name
-const TCHAR szWindowPlacement[] = TEXT("WindowPlacement");				// Registry value name
-const TCHAR szAutoDelete[] = TEXT("AutoDelete");						// Registry value name
-const TCHAR szColumns[] = TEXT("Columns");								// Registry value name
+const TCHAR szMPTelemetry[] = TEXT("ManiaPlanet_Telemetry");				// File mapping object name
+const TCHAR szFmtTmIfVer[] = TEXT("Telemetry Interface Version: %u");		// Format string for the About box
+const TCHAR szFmtRumbleTh[] = TEXT("Rumble Intensity Threshold: %u %%");	// Format string for the About box
+const TCHAR szFmtThrottleTh[] = TEXT("Full Throttle Threshold: %u %%");		// Format string for the About box
+const TCHAR szWindowPlacement[] = TEXT("WindowPlacement");					// Registry value name
+const TCHAR szColumns[] = TEXT("Columns");									// Registry value name
+const TCHAR szAutoDelete[] = TEXT("AutoDelete");							// Registry value name
+const TCHAR szSuspendPeriod[] = TEXT("SuspendPeriod");						// Registry value name
+const TCHAR szRumbleThreshold[] = TEXT("RumbleIntensityThreshold");			// Registry value name
+const TCHAR szFullspeedThreshold[] = TEXT("FullspeedThreshold");			// Registry value name
 
 // Global Variables:
-HINSTANCE hInst = NULL;					// Current instance
-int nDpi = USER_DEFAULT_SCREEN_DPI;		// Current logical dpi
-TCHAR szTitle[MAX_LOADSTRING];			// The title bar text
-TCHAR szWindowClass[MAX_LOADSTRING];	// The main window class name
-HWND hwndListView = NULL;				// List-view control handle
-HWND hwndStatusBar = NULL;				// Status bar control handle
-HWND hwndPBThrottle = NULL;				// First progress bar control handle
-HWND hwndPBRumble = NULL;				// Second progress bar control handle
-Nat32 uHeaderVersion = ECurVersion;		// STelemetry header version
-UINT uSuspendPeriod = SUSPEND_PERIOD;	// Time interval for Sleep
-BOOL bAutoDelete = TRUE;				// Auto delete aborted races
-BOOL bMilesPerHour = FALSE;				// Indicate mph instead of km/h
-DWORD dwColumns = COL_DEFAULT;			// List-view columns to show
-TCHAR szFileName[MAX_PATH];				// Data export file name
+HINSTANCE hInst = NULL;							// Current instance
+int nDpi = USER_DEFAULT_SCREEN_DPI;				// Current logical dpi
+TCHAR szTitle[MAX_LOADSTRING];					// The title bar text
+TCHAR szWindowClass[MAX_LOADSTRING];			// The main window class name
+HWND hwndListView = NULL;						// List-view control handle
+HWND hwndStatusBar = NULL;						// Status bar control handle
+HWND hwndPBThrottle = NULL;						// First progress bar control handle
+HWND hwndPBRumble = NULL;						// Second progress bar control handle
+Nat32 uHeaderVersion = ECurVersion;				// STelemetry header version
+UINT uSuspendPeriod = SUSPEND_PERIOD;			// Time interval for Sleep
+UINT uRumbleThreshold = RUMBLE_THRESHOLD;		// Rumble intensity threshold
+UINT uFullspeedThreshold = FULLSPEED_THRESHOLD;	// Full throttle threshold
+BOOL bAutoDelete = TRUE;						// Auto delete aborted races
+BOOL bMilesPerHour = FALSE;						// Indicate mph instead of km/h
+DWORD dwColumns = COL_DEFAULT;					// List-view columns to show
+TCHAR szFileName[MAX_PATH];						// Data export file name
 
 // Forward declarations of functions included in this code module:
 int					DoMainLoop(void);
@@ -209,12 +217,20 @@ void DoTelemetry(STelemetry* pTelemetry)
 {
 	TCHAR szText[MAX_CONTROLTEXT];
 	static int nRaceNumber = 0; // Number of attempts
-	static Nat32 uTopSpeed = 0; // Top speed per race
-	static Nat32 uMaxNbCheckpoints = 0; // Highest number of CPs per game client
 	static BOOL bAddFinalColumns = FALSE; // Append some statistics after the end of the race
 
+	// Static variables for storing values for the statistical data:
+	static Nat32 uTopSpeed = 0; // Top speed per race
+	static int nNbGearchanges = 0; // Number of gear changes per race
+	static int nNbBrakesUsed = 0; // Number of braking operations per race
+	static int nNbRumbles = 0; // Number of rumbles per race
+	static BOOL bIsRumbling = FALSE; // Are we rumbling right now?
+	static Nat32 uFullspeedTime = 0; // Total time at full throttle
+	static Nat32 uFullspeedTimestamp = 0; // Full throttle timestamp
+	static BOOL bIsFullspeed = FALSE; // Are we going full throttle right now?
+	static Nat32 uMaxNbCheckpoints = 0; // Highest number of CPs per game client
+
 	// Static variables to save the current values of the used telemetry data records:
-	
 	static Nat32 uUpdateNumber = 0;
 
 	static STelemetry::EGameState eGameState = (STelemetry::EGameState)-1;
@@ -230,9 +246,9 @@ void DoTelemetry(STelemetry* pTelemetry)
 
 	static Nat32 uVehicleSpeedMeter = (Nat32)-1;
 	static int nVehicleEngineCurGear = -1;
-	static float fVehicleEngineRpm = -1.0;
-	static float fVehicleInputGasPedal = -1.0;
-	static float fVehicleRumbleIntensity = -1.0;
+	static float fVehicleEngineRpm = -1.0f;
+	static float fVehicleInputGasPedal = -1.0f;
+	static float fVehicleRumbleIntensity = -1.0f;
 	static Bool bVehicleInputIsBraking = (Bool)-1;
 
 	// Test for updated telemetry data records
@@ -265,9 +281,9 @@ void DoTelemetry(STelemetry* pTelemetry)
 
 		uVehicleSpeedMeter = (Nat32)-1;
 		nVehicleEngineCurGear = -1;
-		fVehicleEngineRpm = -1.0;
-		fVehicleInputGasPedal = -1.0;
-		fVehicleRumbleIntensity = -1.0;
+		fVehicleEngineRpm = -1.0f;
+		fVehicleInputGasPedal = -1.0f;
+		fVehicleRumbleIntensity = -1.0f;
 		bVehicleInputIsBraking = (Bool)-1;
 
 		// Clear the parts of the status bar that contain race data
@@ -315,6 +331,13 @@ void DoTelemetry(STelemetry* pTelemetry)
 		if (eRaceState == STelemetry::ERaceState_BeforeState && pTelemetry->Race.State == STelemetry::ERaceState_Running)
 		{
 			uTopSpeed = 0;
+			nNbGearchanges = 0;
+			nNbBrakesUsed = 0;
+			bIsRumbling = pTelemetry->Vehicle.RumbleIntensity > uRumbleThreshold / 100.0f;
+			nNbRumbles = bIsRumbling ? 1 : 0;
+			bIsFullspeed = pTelemetry->Vehicle.InputGasPedal >= uFullspeedThreshold / 100.0f;
+			uFullspeedTime = 0;
+			uFullspeedTimestamp = pTelemetry->Vehicle.Timestamp;
 			uMaxNbCheckpoints = 0;
 
 			// Add a new race to the list-view control and increment the number of attempts
@@ -360,7 +383,12 @@ void DoTelemetry(STelemetry* pTelemetry)
 		{
 			// Test if the checkpoint count has increased to differ between finished and restart
 			if (pTelemetry->Race.NbCheckpoints > uRaceNbCheckpoints)
+			{
 				bAddFinalColumns = TRUE;
+
+				if (bIsFullspeed)
+					uFullspeedTime += pTelemetry->Vehicle.Timestamp - uFullspeedTimestamp;
+			}
 			else if (bAutoDelete && ListView_DeleteRace(hwndListView, nRaceNumber) && nRaceNumber > 0)
 				nRaceNumber--;
 		}
@@ -441,8 +469,8 @@ void DoTelemetry(STelemetry* pTelemetry)
 				pTelemetry->Race.CheckpointTimes[uNewNbCheckpoints - 1]);
 		}
 
-		// Here we have to store the highest number of checkpoints per game client
-		// so that the list is not flooded with data when MP4 and Turbo run simultaneously
+		// Here we have to store the highest number of checkpoints per game client so that
+		// the list is not flooded with data when Maniaplanet and Turbo run simultaneously
 		if (uNewNbCheckpoints > uRaceNbCheckpoints)
 			uMaxNbCheckpoints = uNewNbCheckpoints;
 
@@ -483,6 +511,8 @@ void DoTelemetry(STelemetry* pTelemetry)
 
 		_sntprintf(szText, _countof(szText), szEngineCurGear, nVehicleEngineCurGear);
 		StatusBar_SetText(hwndStatusBar, SBP_CURGEAR, szText, TRUE);
+
+		nNbGearchanges++;
 	}
 
 	// Gas pedal
@@ -491,11 +521,30 @@ void DoTelemetry(STelemetry* pTelemetry)
 		fVehicleInputGasPedal = pTelemetry->Vehicle.InputGasPedal;
 
 		if (hwndPBThrottle != NULL)
-			SendMessage(hwndPBThrottle, PBM_SETPOS, (WPARAM)((fVehicleInputGasPedal * 100.0) + 0.5), 0);
+			SendMessage(hwndPBThrottle, PBM_SETPOS, (WPARAM)((fVehicleInputGasPedal * 100.0f) + 0.5f), 0);
 		else
 		{
-			_sntprintf(szText, _countof(szText), szGasPedal, fVehicleInputGasPedal * 100.0);
+			_sntprintf(szText, _countof(szText), szGasPedal, fVehicleInputGasPedal * 100.0f);
 			StatusBar_SetText(hwndStatusBar, SBP_THROTTLE, szText, TRUE);
+		}
+
+		// Determine full throttle percentage per race. The default threshold of 0.85 does
+		// not take into account releasing the throttle during shifting (powershifting)
+		if (fVehicleInputGasPedal >= uFullspeedThreshold / 100.0f)
+		{
+			if (!bIsFullspeed)
+			{
+				bIsFullspeed = TRUE;
+				uFullspeedTimestamp = pTelemetry->Vehicle.Timestamp;
+			}
+		}
+		else
+		{
+			if (bIsFullspeed)
+			{
+				bIsFullspeed = FALSE;
+				uFullspeedTime += pTelemetry->Vehicle.Timestamp - uFullspeedTimestamp;
+			}
 		}
 	}
 
@@ -505,11 +554,26 @@ void DoTelemetry(STelemetry* pTelemetry)
 		fVehicleRumbleIntensity = pTelemetry->Vehicle.RumbleIntensity;
 
 		if (hwndPBRumble != NULL)
-			SendMessage(hwndPBRumble, PBM_SETPOS, (WPARAM)((fVehicleRumbleIntensity * 100.0) + 0.5), 0);
+			SendMessage(hwndPBRumble, PBM_SETPOS, (WPARAM)((fVehicleRumbleIntensity * 100.0f) + 0.5f), 0);
 		else
 		{
-			_sntprintf(szText, _countof(szText), szRumbleIntensity, fVehicleRumbleIntensity * 100.0);
+			_sntprintf(szText, _countof(szText), szRumbleIntensity, fVehicleRumbleIntensity * 100.0f);
 			StatusBar_SetText(hwndStatusBar, SBP_RUMBLE, szText, TRUE);
+		}
+
+		// Determine number of rumbles per race
+		if (fVehicleRumbleIntensity > uRumbleThreshold / 100.0f)
+		{
+			if (!bIsRumbling)
+			{
+				bIsRumbling = TRUE;
+				nNbRumbles++;
+			}
+		}
+		else
+		{
+			if (bIsRumbling)
+				bIsRumbling = FALSE;
 		}
 	}
 
@@ -519,6 +583,12 @@ void DoTelemetry(STelemetry* pTelemetry)
 		bVehicleInputIsBraking = pTelemetry->Vehicle.InputIsBraking;
 
 		StatusBar_SetText(hwndStatusBar, SBP_BRAKING, bVehicleInputIsBraking ? szBraking : TEXT(""), TRUE);
+
+		// Determine the number of braking operations with at least one wheel on the ground.
+		// BUGBUG: The transition between air braking and ground contact is not detected.
+		if (bVehicleInputIsBraking && (pTelemetry->Vehicle.WheelsIsGroundContact[0] | pTelemetry->Vehicle.WheelsIsGroundContact[1] |
+			pTelemetry->Vehicle.WheelsIsGroundContact[2] | pTelemetry->Vehicle.WheelsIsGroundContact[3]))
+			nNbBrakesUsed++;
 	}
 
 	// Map UID
@@ -532,7 +602,7 @@ void DoTelemetry(STelemetry* pTelemetry)
 				nRaceNumber = 0;
 	}
 
-	// Finally add race time, top speed, and number of respawns
+	// Finally add race time, top speed and further statistics
 	if (bAddFinalColumns)
 	{
 		bAddFinalColumns = FALSE;
@@ -551,6 +621,18 @@ void DoTelemetry(STelemetry* pTelemetry)
 
 		if (dwColumns & COL_RESPAWNS)
 			ListView_AddRaceData(hwndListView, nRaceNumber, COLUMN_AUTOFIT, szRespawns, TEXT("%d"), uRaceNbRespawns);
+
+		if (dwColumns & COL_RUMBLES)
+			ListView_AddRaceData(hwndListView, nRaceNumber, COLUMN_AUTOFIT, szRumbles, TEXT("%d"), nNbRumbles);
+
+		if (dwColumns & COL_GEARCHANGES)
+			ListView_AddRaceData(hwndListView, nRaceNumber, COLUMN_AUTOFIT, szGearchanges, TEXT("%d"), nNbGearchanges);
+
+		if (dwColumns & COL_BRAKESUSED)
+			ListView_AddRaceData(hwndListView, nRaceNumber, COLUMN_AUTOFIT, szBrakesUsed, TEXT("%d"), nNbBrakesUsed);
+
+		if (dwColumns & COL_FULLSPEED)
+			ListView_AddRaceData(hwndListView, nRaceNumber, COLUMN_AUTOFIT, szFullspeed, TEXT("%d %%"), MulDiv(100, uFullspeedTime, uRaceTime));
 	}
 }
 
@@ -653,6 +735,22 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 			if (lStatus == ERROR_SUCCESS && dwValue >= 1 && dwValue <= 100)
 				uSuspendPeriod = (UINT)dwValue;
 
+			// Rumble intensity threshold
+			dwValue = (DWORD)uRumbleThreshold;
+			dwSize = sizeof(dwValue);
+			dwType = REG_DWORD;
+			lStatus = RegQueryValueEx(hKey, szRumbleThreshold, NULL, &dwType, (LPBYTE)&dwValue, &dwSize);
+			if (lStatus == ERROR_SUCCESS && dwValue >= 0 && dwValue <= 100)
+				uRumbleThreshold = (UINT)dwValue;
+
+			// Full throttle threshold
+			dwValue = (DWORD)uFullspeedThreshold;
+			dwSize = sizeof(dwValue);
+			dwType = REG_DWORD;
+			lStatus = RegQueryValueEx(hKey, szFullspeedThreshold, NULL, &dwType, (LPBYTE)&dwValue, &dwSize);
+			if (lStatus == ERROR_SUCCESS && dwValue >= 0 && dwValue <= 100)
+				uFullspeedThreshold = (UINT)dwValue;
+
 			RegCloseKey(hKey);
 		}
 	}
@@ -665,7 +763,7 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 		return FALSE;
 
 	if (bUseDefaultWindowPos || !SetWindowPlacement(hWnd, &wpl))
-	{
+	{	// Note: SetWindowPlacement already does a ShowWindow/UpdateWindow
 		ShowWindow(hWnd, nCmdShow);
 		UpdateWindow(hWnd);
 	}
@@ -742,6 +840,7 @@ BOOL WndProc_OnCreate(HWND hwnd, LPCREATESTRUCT lpCreateStruct)
 			if (ImageList_AddIcon(himl, hIcon) != -1)
 				ListView_SetImageList(hwndListView, himl, LVSIL_SMALL);
 
+			// We can release the icon immediately because ImageList_AddIcon made a copy of it
 			DestroyIcon(hIcon);
 		}
 	}
@@ -750,7 +849,7 @@ BOOL WndProc_OnCreate(HWND hwnd, LPCREATESTRUCT lpCreateStruct)
 	if ((hwndStatusBar = CreateWindow(STATUSCLASSNAME, TEXT(""),
 		WS_CHILD | WS_VISIBLE | WS_CLIPCHILDREN | SBARS_TOOLTIPS | SBARS_SIZEGRIP,
 		0, 0, 0, 0, hwnd, (HMENU)ID_STATUSBAR, lpCreateStruct->hInstance, NULL)) == NULL)
-		return FALSE;
+		return FALSE;	// It's not necessary to destroy all child windows already created
 
 	SetWindowFont(hwndStatusBar, GetStockFont(DEFAULT_GUI_FONT), FALSE);
 
@@ -761,7 +860,8 @@ BOOL WndProc_OnCreate(HWND hwnd, LPCREATESTRUCT lpCreateStruct)
 		aStatusBarParts[i] = MulDiv(aStatusBarParts[i], nDpi, USER_DEFAULT_SCREEN_DPI);
 	SendMessage(hwndStatusBar, SB_SETPARTS, uParts, (LPARAM)&aStatusBarParts);
 
-	// Create progress bar controls for throttle and rumble
+	// Create progress bar controls for throttle and rumble.
+	// These controls are optional. If an error occurs, the parent window should still be created.
 	if ((hwndPBThrottle = CreateWindow(PROGRESS_CLASS, TEXT(""), WS_CHILD | WS_VISIBLE | PBS_SMOOTH,
 		0, 0, 0, 0, hwndStatusBar, (HMENU)ID_PROGRESS1, lpCreateStruct->hInstance, NULL)) != NULL)
 	{
@@ -884,6 +984,22 @@ void WndProc_OnCommand(HWND hwnd, int id, HWND hwndCtl, UINT codeNotify)
 			dwColumns ^= COL_RESPAWNS;
 			break;
 
+		case ID_VIEW_RUMBLES:
+			dwColumns ^= COL_RUMBLES;
+			break;
+
+		case ID_VIEW_GEARCHANGES:
+			dwColumns ^= COL_GEARCHANGES;
+			break;
+
+		case ID_VIEW_BRAKESUSED:
+			dwColumns ^= COL_BRAKESUSED;
+			break;
+
+		case ID_VIEW_FULLSPEED:
+			dwColumns ^= COL_FULLSPEED;
+			break;
+
 		case ID_VIEW_AUTOFITCOLUMNS:
 			ListView_AutoSizeAllColumns(hwndListView);
 			break;
@@ -999,6 +1115,18 @@ void WndProc_OnInitMenuPopup(HWND hwnd, HMENU hMenu, UINT item, BOOL fSystemMenu
 
 			uFlags = (dwColumns & COL_RESPAWNS) ? MF_CHECKED : MF_UNCHECKED;
 			CheckMenuItem(hMenu, ID_VIEW_RESPAWNS, MF_BYCOMMAND | uFlags);
+
+			uFlags = (dwColumns & COL_RUMBLES) ? MF_CHECKED : MF_UNCHECKED;
+			CheckMenuItem(hMenu, ID_VIEW_RUMBLES, MF_BYCOMMAND | uFlags);
+
+			uFlags = (dwColumns & COL_GEARCHANGES) ? MF_CHECKED : MF_UNCHECKED;
+			CheckMenuItem(hMenu, ID_VIEW_GEARCHANGES, MF_BYCOMMAND | uFlags);
+
+			uFlags = (dwColumns & COL_BRAKESUSED) ? MF_CHECKED : MF_UNCHECKED;
+			CheckMenuItem(hMenu, ID_VIEW_BRAKESUSED, MF_BYCOMMAND | uFlags);
+
+			uFlags = (dwColumns & COL_FULLSPEED) ? MF_CHECKED : MF_UNCHECKED;
+			CheckMenuItem(hMenu, ID_VIEW_FULLSPEED, MF_BYCOMMAND | uFlags);
 
 			uFlags = (ListView_GetColumnCount(hwndListView) > 0) ? MF_ENABLED : MF_DISABLED | MF_GRAYED;
 			EnableMenuItem(hMenu, ID_VIEW_AUTOFITCOLUMNS, uFlags);
@@ -1160,9 +1288,16 @@ INT_PTR CALLBACK About(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
 	{
 		case WM_INITDIALOG:
 		{
-			TCHAR szText[64];
-			_sntprintf(szText, _countof(szText), szTelemetryVer, uHeaderVersion);
+			TCHAR szText[256];
+
+			_sntprintf(szText, _countof(szText), szFmtTmIfVer, uHeaderVersion);
 			SetDlgItemText(hDlg, IDC_TELEMETRY_VERSION, szText);
+
+			_sntprintf(szText, _countof(szText), szFmtRumbleTh, uRumbleThreshold);
+			SetDlgItemText(hDlg, IDC_RUMBLE_THRESHOLD, szText);
+
+			_sntprintf(szText, _countof(szText), szFmtThrottleTh, uFullspeedThreshold);
+			SetDlgItemText(hDlg, IDC_FULLSPEED_THRESHOLD, szText);
 		}
 		return (INT_PTR)TRUE;
 
