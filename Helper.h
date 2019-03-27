@@ -29,8 +29,9 @@ const TCHAR szSpeedKmh[] = TEXT("%d km/h");
 const TCHAR szSpeedMph[] = TEXT("%d mph");
 const TCHAR szEngineRpm[] = TEXT("%.0f rpm");
 const TCHAR szEngineCurGear[] = TEXT("Gear: %d");
-const TCHAR szGasPedal[] = TEXT("Throttle: %3.0f%%");
-const TCHAR szRumbleIntensity[] = TEXT("Rumble: %3.0f%%");
+const TCHAR szSteering[] = TEXT("Steering: %3.0f %%");
+const TCHAR szGasPedal[] = TEXT("Throttle: %3.0f %%");
+const TCHAR szRumbleIntensity[] = TEXT("Rumble: %3.0f %%");
 const TCHAR szBraking[] = TEXT("Braking");
 
 // List-view headings
@@ -49,6 +50,7 @@ const TCHAR szRumbles[] = TEXT("Rumbles");
 const TCHAR szGearchanges[] = TEXT("Gearchanges");
 const TCHAR szBrakesUsed[] = TEXT("Brakes Used");
 const TCHAR szFullspeed[] = TEXT("Fullspeed");
+const TCHAR szWheelSlip[] = TEXT("Wheel Slip");
 
 // General functions
 BOOL FormatTime(LPTSTR lpszTime, SIZE_T cchStringLen, int nTime);

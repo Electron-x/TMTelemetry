@@ -10,4 +10,4 @@ The application does not log any data or perform any analyses. Also no gauges or
 
 The source code is provided as an example and should show how to access the game data via the [telemetry interface](https://wiki.xaseco.org/wiki/Telemetry_interface) of [Maniaplanet 4](https://www.maniaplanet.com/) or [Trackmania Turbo](https://www.ubisoft.com/en-gb/game/trackmania-turbo/).
 
-It's a generic C/C++ Win32 desktop project created with Visual Studio 2013. Since no external libraries are used, the project should be built without problems. An older VS2005 project file (.vcproj) and two Visual Studio Installer projects for x86 and x64 are also included.
+This is a generic C/C++ Win32 desktop project created with Visual Studio 2017. Since no external libraries are used, the project should be built without problems. An older VS2005 project file (.vcproj) and two Visual Studio Installer projects for x86 and x64 are also included.

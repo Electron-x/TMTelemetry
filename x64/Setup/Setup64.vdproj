@@ -19,18 +19,6 @@
         "OwnerKey" = "8:_UNDEFINED"
         "MsmSig" = "8:_UNDEFINED"
         }
-        "Entry"
-        {
-        "MsmKey" = "8:_665FB403A6D4043E012DB9F6B0476849"
-        "OwnerKey" = "8:_65858AAF14D941598EF861AABF1E2E6B"
-        "MsmSig" = "8:_UNDEFINED"
-        }
-        "Entry"
-        {
-        "MsmKey" = "8:_DD522C5831B97ADF6D196D3D5C9B6CEB"
-        "OwnerKey" = "8:_65858AAF14D941598EF861AABF1E2E6B"
-        "MsmSig" = "8:_UNDEFINED"
-        }
     }
     "Configurations"
     {
@@ -58,11 +46,6 @@
             "ComponentsUrl" = "8:"
                 "Items"
                 {
-                    "{EDC2488A-8267-493A-A98E-7D9C3B36CDF3}:Microsoft.Windows.Installer.4.5"
-                    {
-                    "Name" = "8:Windows Installer 4.5"
-                    "ProductCode" = "8:Microsoft.Windows.Installer.4.5"
-                    }
                 }
             }
         }
@@ -90,11 +73,6 @@
             "ComponentsUrl" = "8:"
                 "Items"
                 {
-                    "{EDC2488A-8267-493A-A98E-7D9C3B36CDF3}:Microsoft.Windows.Installer.4.5"
-                    {
-                    "Name" = "8:Windows Installer 4.5"
-                    "ProductCode" = "8:Microsoft.Windows.Installer.4.5"
-                    }
                 }
             }
         }
@@ -118,46 +96,6 @@
         }
         "File"
         {
-            "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_665FB403A6D4043E012DB9F6B0476849"
-            {
-            "SourcePath" = "8:UxTheme.dll"
-            "TargetName" = "8:UxTheme.dll"
-            "Tag" = "8:"
-            "Folder" = "8:_CC5F076D042B49EF8560C5B595324D12"
-            "Condition" = "8:"
-            "Transitive" = "11:FALSE"
-            "Vital" = "11:TRUE"
-            "ReadOnly" = "11:FALSE"
-            "Hidden" = "11:FALSE"
-            "System" = "11:FALSE"
-            "Permanent" = "11:FALSE"
-            "SharedLegacy" = "11:FALSE"
-            "PackageAs" = "3:1"
-            "Register" = "3:4"
-            "Exclude" = "11:TRUE"
-            "IsDependency" = "11:TRUE"
-            "IsolateTo" = "8:"
-            }
-            "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_DD522C5831B97ADF6D196D3D5C9B6CEB"
-            {
-            "SourcePath" = "8:COMDLG32.dll"
-            "TargetName" = "8:COMDLG32.dll"
-            "Tag" = "8:"
-            "Folder" = "8:_CC5F076D042B49EF8560C5B595324D12"
-            "Condition" = "8:"
-            "Transitive" = "11:FALSE"
-            "Vital" = "11:TRUE"
-            "ReadOnly" = "11:FALSE"
-            "Hidden" = "11:FALSE"
-            "System" = "11:FALSE"
-            "Permanent" = "11:FALSE"
-            "SharedLegacy" = "11:FALSE"
-            "PackageAs" = "3:1"
-            "Register" = "3:1"
-            "Exclude" = "11:TRUE"
-            "IsDependency" = "11:TRUE"
-            "IsolateTo" = "8:"
-            }
         }
         "FileType"
         {
@@ -221,15 +159,15 @@
         {
         "Name" = "8:Microsoft Visual Studio"
         "ProductName" = "8:Telemetry Monitor"
-        "ProductCode" = "8:{0944F553-25F9-45BF-9E03-674EBC7CC797}"
-        "PackageCode" = "8:{4DA28E79-8613-4A79-8ECA-4D24D1080213}"
+        "ProductCode" = "8:{00FE5A51-EEB8-4497-A5A6-3288D766DF63}"
+        "PackageCode" = "8:{7572FA07-79EA-4816-B2D7-30C4B111AFF2}"
         "UpgradeCode" = "8:{00BD5903-7DBA-499A-9EBA-FB56272E257D}"
         "AspNetVersion" = "8:4.0.30319.0"
         "RestartWWWService" = "11:FALSE"
         "RemovePreviousVersions" = "11:TRUE"
         "DetectNewerInstalledVersion" = "11:TRUE"
         "InstallAllUsers" = "11:FALSE"
-        "ProductVersion" = "8:1.2.0"
+        "ProductVersion" = "8:1.2.1"
         "Manufacturer" = "8:Electron"
         "ARPHELPTELEPHONE" = "8:"
         "ARPHELPLINK" = "8:http://www.wolfgang-rolke.de/gbxdump/"
@@ -237,7 +175,7 @@
         "Subject" = "8:TrackMania Telemetry Monitor (64-bit)"
         "ARPCONTACT" = "8:Electron"
         "Keywords" = "8:Installer,MSI,TMTelemetry,x64"
-        "ARPCOMMENTS" = "8:Copyright (c) 2017, 2018 by Electron"
+        "ARPCOMMENTS" = "8:Copyright (c) 2017-2019 by Electron"
         "ARPURLINFOABOUT" = "8:http://www.wolfgang-rolke.de/gbxdump/"
         "ARPPRODUCTICON" = "8:_65858AAF14D941598EF861AABF1E2E6B"
         "ARPIconIndex" = "3:102"
@@ -324,7 +262,7 @@
                                             "Condition" = "8:"
                                             "Transitive" = "11:FALSE"
                                             "ValueTypes" = "3:3"
-                                            "Value" = "3:16352"
+                                            "Value" = "3:32736"
                                             }
                                             "{ADCFDA98-8FDD-45E4-90BC-E3D20B029870}:_34DE3363F08841DBAF0C61073B9C7C8D"
                                             {
@@ -490,7 +428,7 @@
                             "ContextData" = "8:"
                             "Attributes" = "3:0"
                             "Setting" = "3:2"
-                            "Value" = "8:TrackMania Telemetry Monitor, Copyright © 2017, 2018 by Electron"
+                            "Value" = "8:TrackMania Telemetry Monitor, Copyright © 2017-2019 by Electron"
                             "DefaultValue" = "8:#1202"
                             "UsePlugInResources" = "11:TRUE"
                             }
@@ -597,7 +535,7 @@
                             "ContextData" = "8:"
                             "Attributes" = "3:0"
                             "Setting" = "3:2"
-                            "Value" = "8:TrackMania Telemetry Monitor, Copyright © 2017, 2018 by Electron"
+                            "Value" = "8:TrackMania Telemetry Monitor, Copyright © 2017-2019 by Electron"
                             "DefaultValue" = "8:#1202"
                             "UsePlugInResources" = "11:TRUE"
                             }
@@ -795,7 +733,7 @@
         {
             "{5259A561-127C-4D43-A0A1-72F10C7B3BF8}:_65858AAF14D941598EF861AABF1E2E6B"
             {
-            "SourcePath" = "8:"
+            "SourcePath" = "8:..\\Release\\TMTelemetry.exe"
             "TargetName" = "8:"
             "Tag" = "8:"
             "Folder" = "8:_CC5F076D042B49EF8560C5B595324D12"

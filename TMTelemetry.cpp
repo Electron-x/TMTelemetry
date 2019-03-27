@@ -35,6 +35,7 @@ TCHAR szTitle[MAX_LOADSTRING];					// The title bar text
 TCHAR szWindowClass[MAX_LOADSTRING];			// The main window class name
 HWND hwndListView = NULL;						// List-view control handle
 HWND hwndStatusBar = NULL;						// Status bar control handle
+HWND hwndTBSteering = NULL;						// Trackbar control handle
 HWND hwndPBThrottle = NULL;						// First progress bar control handle
 HWND hwndPBRumble = NULL;						// Second progress bar control handle
 Nat32 uHeaderVersion = ECurVersion;				// STelemetry header version
@@ -228,6 +229,9 @@ void DoTelemetry(STelemetry* pTelemetry)
 	static Nat32 uFullspeedTime = 0; // Total time at full throttle
 	static Nat32 uFullspeedTimestamp = 0; // Full throttle timestamp
 	static BOOL bIsFullspeed = FALSE; // Are we going full throttle right now?
+	static Nat32 uWheelSlipTime = 0; // Total time of wheel slippage
+	static Nat32 uWheelSlipTimestamp = 0; // Wheel slip timestamp
+	static BOOL bIsSlipping = FALSE; // Is a wheel slipping right now?
 	static Nat32 uMaxNbCheckpoints = 0; // Highest number of CPs per game client
 
 	// Static variables to save the current values of the used telemetry data records:
@@ -247,9 +251,11 @@ void DoTelemetry(STelemetry* pTelemetry)
 	static Nat32 uVehicleSpeedMeter = (Nat32)-1;
 	static int nVehicleEngineCurGear = -1;
 	static float fVehicleEngineRpm = -1.0f;
+	static float fVehicleInputSteer = -2.0f;	// -1.0 is a regular value
 	static float fVehicleInputGasPedal = -1.0f;
 	static float fVehicleRumbleIntensity = -1.0f;
 	static Bool bVehicleInputIsBraking = (Bool)-1;
+	static Bool aWheelsIsSliping[4] = { (Bool)-1, (Bool)-1, (Bool)-1, (Bool)-1 };
 
 	// Test for updated telemetry data records
 	if (pTelemetry->UpdateNumber == uUpdateNumber)
@@ -282,6 +288,7 @@ void DoTelemetry(STelemetry* pTelemetry)
 		uVehicleSpeedMeter = (Nat32)-1;
 		nVehicleEngineCurGear = -1;
 		fVehicleEngineRpm = -1.0f;
+		fVehicleInputSteer = -2.0f;	// -1.0 is a regular value
 		fVehicleInputGasPedal = -1.0f;
 		fVehicleRumbleIntensity = -1.0f;
 		bVehicleInputIsBraking = (Bool)-1;
@@ -291,6 +298,11 @@ void DoTelemetry(STelemetry* pTelemetry)
 		for (int i = SBP_RACESTATE; i <= SBP_BRAKING; i++)
 			StatusBar_SetText(hwndStatusBar, i, TEXT(""));
 
+		if (hwndTBSteering != NULL)
+		{
+			SendMessage(hwndTBSteering, TBM_CLEARSEL, (WPARAM)TRUE, 0);
+			SendMessage(hwndTBSteering, TBM_SETPOS, (WPARAM)TRUE, 0);
+		}
 		if (hwndPBThrottle != NULL)
 			SendMessage(hwndPBThrottle, PBM_SETPOS, 0, 0);
 		if (hwndPBRumble != NULL)
@@ -338,6 +350,10 @@ void DoTelemetry(STelemetry* pTelemetry)
 			bIsFullspeed = pTelemetry->Vehicle.InputGasPedal >= uFullspeedThreshold / 100.0f;
 			uFullspeedTime = 0;
 			uFullspeedTimestamp = pTelemetry->Vehicle.Timestamp;
+			bIsSlipping = pTelemetry->Vehicle.WheelsIsSliping[0] || pTelemetry->Vehicle.WheelsIsSliping[1] ||
+				pTelemetry->Vehicle.WheelsIsSliping[2] || pTelemetry->Vehicle.WheelsIsSliping[3];
+			uWheelSlipTime = 0;
+			uWheelSlipTimestamp = pTelemetry->Vehicle.Timestamp;
 			uMaxNbCheckpoints = 0;
 
 			// Add a new race to the list-view control and increment the number of attempts
@@ -388,6 +404,8 @@ void DoTelemetry(STelemetry* pTelemetry)
 
 				if (bIsFullspeed)
 					uFullspeedTime += pTelemetry->Vehicle.Timestamp - uFullspeedTimestamp;
+				if (bIsSlipping)
+					uWheelSlipTime += pTelemetry->Vehicle.Timestamp - uWheelSlipTimestamp;
 			}
 			else if (bAutoDelete && ListView_DeleteRace(hwndListView, nRaceNumber) && nRaceNumber > 0)
 				nRaceNumber--;
@@ -418,7 +436,7 @@ void DoTelemetry(STelemetry* pTelemetry)
 		MultiByteToWideChar(CP_UTF8, 0, szMapName, -1, szText, _countof(szText));
 		// If a new map name exists, update the file name for data export
 		if (_tcslen(szText) > 0)
-			_tcsncpy(szFileName, szText, _countof(szFileName));
+			lstrcpyn(szFileName, szText, _countof(szFileName));
 
 		StatusBar_SetText(hwndStatusBar, SBP_MAPNAME, szText);
 	}
@@ -515,16 +533,35 @@ void DoTelemetry(STelemetry* pTelemetry)
 		nNbGearchanges++;
 	}
 
+	// Steering
+	if (pTelemetry->Vehicle.InputSteer != fVehicleInputSteer)
+	{
+		fVehicleInputSteer = pTelemetry->Vehicle.InputSteer;
+
+		if (hwndTBSteering != NULL)
+		{
+			LPARAM lPos = (LPARAM)(fVehicleInputSteer * 100.0);
+			SendMessage(hwndTBSteering, TBM_SETSELSTART, (WPARAM)TRUE, fVehicleInputSteer < 0.0f ? lPos : 0);
+			SendMessage(hwndTBSteering, TBM_SETSELEND, (WPARAM)TRUE, fVehicleInputSteer < 0.0f ? 0 : lPos);
+			SendMessage(hwndTBSteering, TBM_SETPOS, (WPARAM)TRUE, lPos);
+		}
+		else
+		{
+			_sntprintf(szText, _countof(szText), szSteering, fVehicleInputSteer * 100.0);
+			StatusBar_SetText(hwndStatusBar, SBP_STEERING, szText, TRUE);
+		}
+	}
+
 	// Gas pedal
 	if (pTelemetry->Vehicle.InputGasPedal != fVehicleInputGasPedal)
 	{
 		fVehicleInputGasPedal = pTelemetry->Vehicle.InputGasPedal;
 
 		if (hwndPBThrottle != NULL)
-			SendMessage(hwndPBThrottle, PBM_SETPOS, (WPARAM)((fVehicleInputGasPedal * 100.0f) + 0.5f), 0);
+			SendMessage(hwndPBThrottle, PBM_SETPOS, (WPARAM)((fVehicleInputGasPedal * 100.0) + 0.5), 0);
 		else
 		{
-			_sntprintf(szText, _countof(szText), szGasPedal, fVehicleInputGasPedal * 100.0f);
+			_sntprintf(szText, _countof(szText), szGasPedal, fVehicleInputGasPedal * 100.0);
 			StatusBar_SetText(hwndStatusBar, SBP_THROTTLE, szText, TRUE);
 		}
 
@@ -548,16 +585,40 @@ void DoTelemetry(STelemetry* pTelemetry)
 		}
 	}
 
+	// Wheel slip
+	if (memcmp(&pTelemetry->Vehicle.WheelsIsSliping, &aWheelsIsSliping, sizeof(aWheelsIsSliping)) != 0)
+	{
+		memcpy(&aWheelsIsSliping, &pTelemetry->Vehicle.WheelsIsSliping, sizeof(aWheelsIsSliping));
+
+		// Determine the percentage of time per race in which at least one wheel is slipping.
+		if (aWheelsIsSliping[0] || aWheelsIsSliping[1] || aWheelsIsSliping[2] || aWheelsIsSliping[3])
+		{
+			if (!bIsSlipping)
+			{
+				bIsSlipping = TRUE;
+				uWheelSlipTimestamp = pTelemetry->Vehicle.Timestamp;
+			}
+		}
+		else
+		{
+			if (bIsSlipping)
+			{
+				bIsSlipping = FALSE;
+				uWheelSlipTime += pTelemetry->Vehicle.Timestamp - uWheelSlipTimestamp;
+			}
+		}
+	}
+
 	// Rumble intensity
 	if (pTelemetry->Vehicle.RumbleIntensity != fVehicleRumbleIntensity)
 	{
 		fVehicleRumbleIntensity = pTelemetry->Vehicle.RumbleIntensity;
 
 		if (hwndPBRumble != NULL)
-			SendMessage(hwndPBRumble, PBM_SETPOS, (WPARAM)((fVehicleRumbleIntensity * 100.0f) + 0.5f), 0);
+			SendMessage(hwndPBRumble, PBM_SETPOS, (WPARAM)((fVehicleRumbleIntensity * 100.0) + 0.5), 0);
 		else
 		{
-			_sntprintf(szText, _countof(szText), szRumbleIntensity, fVehicleRumbleIntensity * 100.0f);
+			_sntprintf(szText, _countof(szText), szRumbleIntensity, fVehicleRumbleIntensity * 100.0);
 			StatusBar_SetText(hwndStatusBar, SBP_RUMBLE, szText, TRUE);
 		}
 
@@ -586,15 +647,15 @@ void DoTelemetry(STelemetry* pTelemetry)
 
 		// Determine the number of braking operations with at least one wheel on the ground.
 		// BUGBUG: The transition between air braking and ground contact is not detected.
-		if (bVehicleInputIsBraking && (pTelemetry->Vehicle.WheelsIsGroundContact[0] | pTelemetry->Vehicle.WheelsIsGroundContact[1] |
-			pTelemetry->Vehicle.WheelsIsGroundContact[2] | pTelemetry->Vehicle.WheelsIsGroundContact[3]))
+		if (bVehicleInputIsBraking && (pTelemetry->Vehicle.WheelsIsGroundContact[0] || pTelemetry->Vehicle.WheelsIsGroundContact[1] ||
+			pTelemetry->Vehicle.WheelsIsGroundContact[2] || pTelemetry->Vehicle.WheelsIsGroundContact[3]))
 			nNbBrakesUsed++;
 	}
 
 	// Map UID
 	if (strcmp(pTelemetry->Game.MapId, szMapId) != 0)
 	{
-		strncpy(szMapId, pTelemetry->Game.MapId, _countof(szMapId));
+		lstrcpynA(szMapId, pTelemetry->Game.MapId, _countof(szMapId));
 
 		// Clear all races after map changes
 		if (strcmp(szMapId, "Unassigned") != 0)
@@ -633,6 +694,9 @@ void DoTelemetry(STelemetry* pTelemetry)
 
 		if (dwColumns & COL_FULLSPEED)
 			ListView_AddRaceData(hwndListView, nRaceNumber, COLUMN_AUTOFIT, szFullspeed, TEXT("%d %%"), MulDiv(100, uFullspeedTime, uRaceTime));
+
+		if (dwColumns & COL_WHEELSLIP)
+			ListView_AddRaceData(hwndListView, nRaceNumber, COLUMN_AUTOFIT, szWheelSlip, TEXT("%d %%"), MulDiv(100, uWheelSlipTime, uRaceTime));
 	}
 }
 
@@ -854,14 +918,24 @@ BOOL WndProc_OnCreate(HWND hwnd, LPCREATESTRUCT lpCreateStruct)
 	SetWindowFont(hwndStatusBar, GetStockFont(DEFAULT_GUI_FONT), FALSE);
 
 	// Set the number of parts and the coordinate of the right edge of each part
-	int aStatusBarParts[14] = { 125, 235, 385, 480, 555, 605, 650, 715, 790, 850, 940, 1030, 1090, -1 };
+	int aStatusBarParts[15] = { 125, 235, 385, 480, 555, 605, 650, 715, 790, 850, 940, 1030, 1120, 1180, -1 };
 	SIZE_T uParts = _countof(aStatusBarParts);
 	for (SIZE_T i = 0; i < (uParts - 1); i++)
 		aStatusBarParts[i] = MulDiv(aStatusBarParts[i], nDpi, USER_DEFAULT_SCREEN_DPI);
 	SendMessage(hwndStatusBar, SB_SETPARTS, uParts, (LPARAM)&aStatusBarParts);
 
-	// Create progress bar controls for throttle and rumble.
+	// Create trackbar and progress bar controls for steering, throttle and rumble.
 	// These controls are optional. If an error occurs, the parent window should still be created.
+	if ((hwndTBSteering = CreateWindow(TRACKBAR_CLASS, TEXT(""),
+		WS_CHILD | WS_VISIBLE | WS_DISABLED | TBS_HORZ | TBS_BOTH | TBS_NOTICKS | TBS_ENABLESELRANGE | TBS_FIXEDLENGTH,
+		0, 0, 0, 0, hwndStatusBar, (HMENU)ID_TRACKBAR, lpCreateStruct->hInstance, NULL)) != NULL)
+	{
+		SendMessage(hwndTBSteering, TBM_SETRANGEMIN, (WPARAM)FALSE, -100);
+		SendMessage(hwndTBSteering, TBM_SETRANGEMAX, (WPARAM)FALSE, 100);
+		SendMessage(hwndTBSteering, TBM_CLEARSEL, (WPARAM)FALSE, 0);
+		SendMessage(hwndTBSteering, TBM_SETPOS, (WPARAM)FALSE, 0);
+	}
+
 	if ((hwndPBThrottle = CreateWindow(PROGRESS_CLASS, TEXT(""), WS_CHILD | WS_VISIBLE | PBS_SMOOTH,
 		0, 0, 0, 0, hwndStatusBar, (HMENU)ID_PROGRESS1, lpCreateStruct->hInstance, NULL)) != NULL)
 	{
@@ -1000,6 +1074,10 @@ void WndProc_OnCommand(HWND hwnd, int id, HWND hwndCtl, UINT codeNotify)
 			dwColumns ^= COL_FULLSPEED;
 			break;
 
+		case ID_VIEW_WHEELSLIP:
+			dwColumns ^= COL_WHEELSLIP;
+			break;
+
 		case ID_VIEW_AUTOFITCOLUMNS:
 			ListView_AutoSizeAllColumns(hwndListView);
 			break;
@@ -1128,6 +1206,9 @@ void WndProc_OnInitMenuPopup(HWND hwnd, HMENU hMenu, UINT item, BOOL fSystemMenu
 			uFlags = (dwColumns & COL_FULLSPEED) ? MF_CHECKED : MF_UNCHECKED;
 			CheckMenuItem(hMenu, ID_VIEW_FULLSPEED, MF_BYCOMMAND | uFlags);
 
+			uFlags = (dwColumns & COL_WHEELSLIP) ? MF_CHECKED : MF_UNCHECKED;
+			CheckMenuItem(hMenu, ID_VIEW_WHEELSLIP, MF_BYCOMMAND | uFlags);
+
 			uFlags = (ListView_GetColumnCount(hwndListView) > 0) ? MF_ENABLED : MF_DISABLED | MF_GRAYED;
 			EnableMenuItem(hMenu, ID_VIEW_AUTOFITCOLUMNS, uFlags);
 			break;
@@ -1221,7 +1302,16 @@ void WndProc_OnSize(HWND hwnd, UINT state, int cx, int cy)
 
 	// Forward this message to the status bar to automatically adjust its position and size
 	FORWARD_WM_SIZE(hwndStatusBar, state, cx, cy, SendMessage);
+
 	GetWindowRect(hwndStatusBar, &rcStatusBar);
+
+	// Place the "Steering" trackbar in the part with index SBP_STEERING
+	if (hwndTBSteering != NULL && SendMessage(hwndStatusBar, SB_GETRECT, SBP_STEERING, (LPARAM)&rcPart))
+	{
+		MoveWindow(hwndTBSteering, rcPart.left, rcPart.top, rcPart.right - rcPart.left - 1,
+			rcPart.bottom - rcPart.top - 1, TRUE);
+		SendMessage(hwndTBSteering, TBM_SETTHUMBLENGTH, rcPart.bottom - rcPart.top - 4, 0);
+	}
 
 	// Place the "Throttle" progress bar in the part with index SBP_THROTTLE
 	if (hwndPBThrottle != NULL && SendMessage(hwndStatusBar, SB_GETRECT, SBP_THROTTLE, (LPARAM)&rcPart))
@@ -1249,6 +1339,8 @@ void WndProc_OnSysColorChange(HWND hwnd)
 	// Forward this message to all common controls
 	FORWARD_WM_SYSCOLORCHANGE(hwndListView, PostMessage);
 	FORWARD_WM_SYSCOLORCHANGE(hwndStatusBar, PostMessage);
+	if (hwndTBSteering != NULL)
+		FORWARD_WM_SYSCOLORCHANGE(hwndTBSteering, PostMessage);
 	if (hwndPBThrottle != NULL)
 		FORWARD_WM_SYSCOLORCHANGE(hwndPBThrottle, PostMessage);
 	if (hwndPBRumble != NULL)
@@ -1288,15 +1380,18 @@ INT_PTR CALLBACK About(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
 	{
 		case WM_INITDIALOG:
 		{
-			TCHAR szText[256];
+			TCHAR szText[MAX_CONTROLTEXT];
 
-			_sntprintf(szText, _countof(szText), szFmtTmIfVer, uHeaderVersion);
+			_sntprintf(szText, _countof(szText) - 1, szFmtTmIfVer, uHeaderVersion);
+			szText[MAX_CONTROLTEXT-1] = TEXT('\0');
 			SetDlgItemText(hDlg, IDC_TELEMETRY_VERSION, szText);
 
-			_sntprintf(szText, _countof(szText), szFmtRumbleTh, uRumbleThreshold);
+			_sntprintf(szText, _countof(szText) - 1, szFmtRumbleTh, uRumbleThreshold);
+			szText[MAX_CONTROLTEXT - 1] = TEXT('\0');
 			SetDlgItemText(hDlg, IDC_RUMBLE_THRESHOLD, szText);
 
-			_sntprintf(szText, _countof(szText), szFmtThrottleTh, uFullspeedThreshold);
+			_sntprintf(szText, _countof(szText) - 1, szFmtThrottleTh, uFullspeedThreshold);
+			szText[MAX_CONTROLTEXT - 1] = TEXT('\0');
 			SetDlgItemText(hDlg, IDC_FULLSPEED_THRESHOLD, szText);
 		}
 		return (INT_PTR)TRUE;
@@ -1327,6 +1422,8 @@ int CALLBACK CompareFunc(LPARAM lParam1, LPARAM lParam2, LPARAM lParamSort)
 {
 	TCHAR szSortText1[MAX_CONTROLTEXT];
 	TCHAR szSortText2[MAX_CONTROLTEXT];
+	szSortText1[0] = TEXT('\0');
+	szSortText2[0] = TEXT('\0');
 
 	ListView_GetItemText(hwndListView, lParam1, LOWORD(lParamSort),
 		HIWORD(lParamSort) ? szSortText2 : szSortText1, MAX_CONTROLTEXT - 1);

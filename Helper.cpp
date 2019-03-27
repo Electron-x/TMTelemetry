@@ -13,7 +13,7 @@ BOOL FormatTime(LPTSTR lpszTime, SIZE_T cchStringLen, int nTime)
 		return FALSE;
 
 	if (nTime <= 0)
-		_tcsncpy(lpszTime, TEXT("0:00.000"), cchStringLen);
+		lstrcpyn(lpszTime, TEXT("0:00.000"), (int)cchStringLen);
 	else if (nTime < 3600000)
 	{
 		UINT uMinute = (nTime / 60000);
@@ -54,7 +54,7 @@ BOOL GetFileName(HWND hWnd, LPTSTR lpszFileName, SIZE_T cchStringLen, LPDWORD lp
 	TCHAR* pszInitialDir = szInitialDir;
 	if (lpszFileName[0] != TEXT('\0'))
 	{
-		_tcsncpy(pszInitialDir, lpszFileName, _countof(szInitialDir));
+		lstrcpyn(pszInitialDir, lpszFileName, _countof(szInitialDir));
 		TCHAR* token = _tcsrchr(pszInitialDir, TEXT('\\'));
 		if (token != NULL)
 			pszInitialDir[token - szInitialDir] = TEXT('\0');
@@ -69,9 +69,9 @@ BOOL GetFileName(HWND hWnd, LPTSTR lpszFileName, SIZE_T cchStringLen, LPDWORD lp
 	if (bSave)
 	{
 		if (lpszFileName[0] != TEXT('\0'))
-			_tcsncpy(szFile, lpszFileName, _countof(szFile));
+			lstrcpyn(szFile, lpszFileName, _countof(szFile));
 		else
-			_tcsncpy(szFile, TEXT("*"), _countof(szFile));
+			lstrcpyn(szFile, TEXT("*"), _countof(szFile));
 		TCHAR* token = _tcsrchr(szFile, TEXT('.'));
 		if (token != NULL)
 			szFile[token - szFile] = TEXT('\0');
@@ -111,7 +111,7 @@ BOOL GetFileName(HWND hWnd, LPTSTR lpszFileName, SIZE_T cchStringLen, LPDWORD lp
 
 	if (bRet)
 	{
-		_tcsncpy(lpszFileName, szFile, cchStringLen);
+		lstrcpyn(lpszFileName, szFile, (int)cchStringLen);
 		*lpdwFilterIndex = of.nFilterIndex;
 	}
 
@@ -126,7 +126,7 @@ BOOL StatusBar_SetText(HWND hwndCtl, UINT uIndexType, LPCTSTR lpszText, BOOL bCe
 	if (hwndCtl == NULL)
 		return FALSE;
 
-	// Set ToolTip
+	// Set tooltip
 	SendMessage(hwndCtl, SB_SETTIPTEXT, (WPARAM)LOBYTE(LOWORD(uIndexType)), (LPARAM)lpszText);
 
 	if (!bCenter)
@@ -413,6 +413,7 @@ int ListView_AddRaceText(HWND hwndCtl, int nRaceNumber, int nColumnWidth, LPCTST
 		// If necessary, rename the header if the application
 		// was started while a race was already in progress
 		TCHAR szHeading[MAX_CONTROLTEXT];
+		szHeading[0] = TEXT('\0');
 
 		LV_COLUMN col = { 0 };
 		col.mask = LVCF_TEXT;
@@ -533,6 +534,7 @@ BOOL ListView_DeleteAllRaces(HWND hwndCtl)
 BOOL ListView_SaveAllItems(HWND hwndCtl, LPTSTR lpszFileName, BOOL bSaveAsCsv)
 {
 	TCHAR szText[MAX_CONTROLTEXT];
+	szText[0] = TEXT('\0');
 
 	if (hwndCtl == NULL)
 		return FALSE;
