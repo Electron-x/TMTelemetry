@@ -11,4 +11,7 @@
 #define _WIN32_WINDOWS 0x0600
 #define _WIN32_IE 0x0800
 
+#if defined (_MSC_VER) && (_MSC_VER <= 1500)
+#else
 #include <SDKDDKVer.h>
+#endif

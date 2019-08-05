@@ -178,6 +178,7 @@
     </ResourceCompile>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="DoTelemetry.h" />
     <ClInclude Include="Helper.h" />
     <ClInclude Include="maniaplanet_telemetry.h" />
     <ClInclude Include="Resource.h" />
@@ -186,6 +187,7 @@
     <ClInclude Include="TMTelemetry.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="DoTelemetry.cpp" />
     <ClCompile Include="Helper.cpp" />
     <ClCompile Include="stdafx.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>

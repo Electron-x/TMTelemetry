@@ -153,13 +153,12 @@ void ListView_InvertSelection(HWND hwndCtl)
 {
 	if (hwndCtl != NULL)
 	{
-		int iItem = -1;
-		UINT uFlag = 0;
-
 		SetFocus(hwndCtl);
+
+		int iItem = -1;
 		while ((iItem = ListView_GetNextItem(hwndCtl, iItem, LVNI_ALL)) != -1)
 		{
-			uFlag = ListView_GetItemState(hwndCtl, iItem, LVIS_SELECTED);
+			UINT uFlag = ListView_GetItemState(hwndCtl, iItem, LVIS_SELECTED);
 			uFlag ^= LVIS_SELECTED;
 			ListView_SetItemState(hwndCtl, iItem, uFlag, LVIS_SELECTED);
 		}
@@ -243,15 +242,14 @@ void ListView_AutoSizeAllColumns(HWND hwndCtl)
 	ListView_InsertColumn(hwndCtl, nColumnsCnt, &col);
 
 	// Autosize all columns to fit header/text tightly:
-	int nWidthHeader, nWidthText;
 	for (int iCol = 0;; iCol++)
 	{
 		if (!ListView_SetColumnWidth(hwndCtl, iCol, LVSCW_AUTOSIZE_USEHEADER))
 			break;
 
-		nWidthHeader = ListView_GetColumnWidth(hwndCtl, iCol);
+		int nWidthHeader = ListView_GetColumnWidth(hwndCtl, iCol);
 		ListView_SetColumnWidth(hwndCtl, iCol, LVSCW_AUTOSIZE);
-		nWidthText = ListView_GetColumnWidth(hwndCtl, iCol);
+		int nWidthText = ListView_GetColumnWidth(hwndCtl, iCol);
 
 		if (nWidthText < nWidthHeader)
 			ListView_SetColumnWidth(hwndCtl, iCol, nWidthHeader);

@@ -3,9 +3,7 @@
 #include "stdafx.h"
 #include "resource.h"
 #include "tmtelemetry.h"
-#include "maniaplanet_telemetry.h"
-
-using namespace NManiaPlanet;
+#include "dotelemetry.h"
 
 // Constants:
 #ifndef WM_DPICHANGED
@@ -28,7 +26,7 @@ const TCHAR szSuspendPeriod[] = TEXT("SuspendPeriod");						// Registry value na
 const TCHAR szRumbleThreshold[] = TEXT("RumbleIntensityThreshold");			// Registry value name
 const TCHAR szFullspeedThreshold[] = TEXT("FullspeedThreshold");			// Registry value name
 
-// Global Variables:
+// Global variables:
 HINSTANCE hInst = NULL;							// Current instance
 int nDpi = USER_DEFAULT_SCREEN_DPI;				// Current logical dpi
 TCHAR szTitle[MAX_LOADSTRING];					// The title bar text
@@ -49,7 +47,7 @@ TCHAR szFileName[MAX_PATH];						// Data export file name
 
 // Forward declarations of functions included in this code module:
 int					DoMainLoop(void);
-void				DoTelemetry(STelemetry*);
+void				DoTelemetry(STelemetryData*);
 ATOM				MyRegisterClass(HINSTANCE hInstance);
 BOOL				InitInstance(HINSTANCE, int);
 LRESULT CALLBACK	WndProc(HWND, UINT, WPARAM, LPARAM);
@@ -68,7 +66,7 @@ void				WndProc_OnDestroy(HWND hwnd);
 INT_PTR CALLBACK	About(HWND, UINT, WPARAM, LPARAM);
 int CALLBACK		CompareFunc(LPARAM, LPARAM, LPARAM);
 
-
+// Main function
 int APIENTRY _tWinMain(__in HINSTANCE hInstance, __in_opt HINSTANCE hPrevInstance, __in LPTSTR lpCmdLine, __in int nCmdShow)
 {
 	UNREFERENCED_PARAMETER(hPrevInstance);
@@ -113,6 +111,9 @@ int DoMainLoop(void)
 	HANDLE hMapFile = NULL;
 	void* pBufView = NULL;
 	const volatile STelemetry* Shared = NULL;
+	
+	STelemetryData tmdata;
+	InitTelemetryData(&tmdata);
 
 	// Set timer resolution for Sleep
 	// Note: Maniaplanet and Trackmania Turbo both set the resolution globally to 1 ms
@@ -125,6 +126,8 @@ int DoMainLoop(void)
 
 	// Main message loop. For the time being and the sake of simplicity, we use
 	// busy waiting in this example and let the thread sleep for a fixed time.
+	// A more effective and flexible method is described here:
+	// https://devblogs.microsoft.com/oldnewthing/20060126-00/?p=32513
 	for (;;)
 	{
 		// Retrieve incoming messages and return immediately
@@ -174,12 +177,10 @@ int DoMainLoop(void)
 		}
 		else
 		{
-			STelemetry S;
-
 			for (;;)
 			{
 				Nat32 Before = Shared->UpdateNumber;
-				memcpy(&S, (const STelemetry*)Shared, sizeof(S));
+				memcpy(&tmdata.Current, (const STelemetry*)Shared, sizeof(tmdata.Current));
 				Nat32 After = Shared->UpdateNumber;
 
 				if (Before == After)
@@ -189,7 +190,7 @@ int DoMainLoop(void)
 			}
 
 			// Process the telemetry data
-			DoTelemetry(&S);
+			DoTelemetry(&tmdata);
 		}
 
 		// Suspend the busy wait loop
@@ -207,497 +208,6 @@ int DoMainLoop(void)
 		CloseHandle(hMapFile);
 
 	return (int)msg.wParam;
-}
-
-//
-//	FUNCTION: DoTelemetry(STelemetry*)
-//
-//	PURPOSE: Processes the telemetry data
-//
-void DoTelemetry(STelemetry* pTelemetry)
-{
-	TCHAR szText[MAX_CONTROLTEXT];
-	static int nRaceNumber = 0; // Number of attempts
-	static BOOL bAddFinalColumns = FALSE; // Append some statistics after the end of the race
-
-	// Static variables for storing values for the statistical data:
-	static Nat32 uTopSpeed = 0; // Top speed per race
-	static int nNbGearchanges = 0; // Number of gear changes per race
-	static int nNbBrakesUsed = 0; // Number of braking operations per race
-	static int nNbRumbles = 0; // Number of rumbles per race
-	static BOOL bIsRumbling = FALSE; // Are we rumbling right now?
-	static Nat32 uFullspeedTime = 0; // Total time at full throttle
-	static Nat32 uFullspeedTimestamp = 0; // Full throttle timestamp
-	static BOOL bIsFullspeed = FALSE; // Are we going full throttle right now?
-	static Nat32 uWheelSlipTime = 0; // Total time of wheel slippage
-	static Nat32 uWheelSlipTimestamp = 0; // Wheel slip timestamp
-	static BOOL bIsSlipping = FALSE; // Is a wheel slipping right now?
-	static Nat32 uMaxNbCheckpoints = 0; // Highest number of CPs per game client
-
-	// Static variables to save the current values of the used telemetry data records:
-	static Nat32 uUpdateNumber = 0;
-
-	static STelemetry::EGameState eGameState = (STelemetry::EGameState)-1;
-	static STelemetry::ERaceState eRaceState = (STelemetry::ERaceState)-1;
-
-	static char szMapName[256] = { 0 };
-	static char szMapId[64] = { 0 };
-	static char szGameplayVariant[64] = { 0 };
-
-	static Nat32 uRaceTime = (Nat32)-2;	// -1 is a regular value
-	static Nat32 uRaceNbRespawns = (Nat32)-2;	// -1 is a regular value
-	static Nat32 uRaceNbCheckpoints = (Nat32)-1;
-
-	static Nat32 uVehicleSpeedMeter = (Nat32)-1;
-	static int nVehicleEngineCurGear = -1;
-	static float fVehicleEngineRpm = -1.0f;
-	static float fVehicleInputSteer = -2.0f;	// -1.0 is a regular value
-	static float fVehicleInputGasPedal = -1.0f;
-	static float fVehicleRumbleIntensity = -1.0f;
-	static Bool bVehicleInputIsBraking = (Bool)-1;
-	static Bool aWheelsIsSliping[4] = { (Bool)-1, (Bool)-1, (Bool)-1, (Bool)-1 };
-
-	// Test for updated telemetry data records
-	if (pTelemetry->UpdateNumber == uUpdateNumber)
-		return;
-
-	uUpdateNumber = pTelemetry->UpdateNumber;
-
-	// STelemetry header version; will be displayed in the About box
-	if (pTelemetry->Header.Version != uHeaderVersion)
-		uHeaderVersion = pTelemetry->Header.Version;
-
-	// The provided telemetry data records are not cleared after a race ends.
-	// To not display wrong or unusable values, we clean at least the status
-	// bar parts while the game is in Menu state.
-	if (pTelemetry->Game.State == STelemetry::EState_Menus)
-	{
-		// We need to reset our saved values so that the start of
-		// a new race will also show the data that has not changed:
-		eGameState = pTelemetry->Game.State;
-		eRaceState = (STelemetry::ERaceState)-1;
-
-		szMapName[0] = '\0';
-		szMapId[0] = '\0';
-		szGameplayVariant[0] = '\0';
-
-		uRaceTime = (Nat32)-2;	// -1 is a regular value
-		uRaceNbRespawns = (Nat32)-2;	// -1 is a regular value
-		uRaceNbCheckpoints = (Nat32)-1;
-
-		uVehicleSpeedMeter = (Nat32)-1;
-		nVehicleEngineCurGear = -1;
-		fVehicleEngineRpm = -1.0f;
-		fVehicleInputSteer = -2.0f;	// -1.0 is a regular value
-		fVehicleInputGasPedal = -1.0f;
-		fVehicleRumbleIntensity = -1.0f;
-		bVehicleInputIsBraking = (Bool)-1;
-
-		// Clear the parts of the status bar that contain race data
-		StatusBar_SetText(hwndStatusBar, SBP_GAMESTATE, szGameMenus);
-		for (int i = SBP_RACESTATE; i <= SBP_BRAKING; i++)
-			StatusBar_SetText(hwndStatusBar, i, TEXT(""));
-
-		if (hwndTBSteering != NULL)
-		{
-			SendMessage(hwndTBSteering, TBM_CLEARSEL, (WPARAM)TRUE, 0);
-			SendMessage(hwndTBSteering, TBM_SETPOS, (WPARAM)TRUE, 0);
-		}
-		if (hwndPBThrottle != NULL)
-			SendMessage(hwndPBThrottle, PBM_SETPOS, 0, 0);
-		if (hwndPBRumble != NULL)
-			SendMessage(hwndPBRumble, PBM_SETPOS, 0, 0);
-
-		return;	// Nothing to monitor
-	}
-
-	// Check whether a used data element has changed and update the
-	// respective status bar and list-view panes with the new values
-
-	// Game state
-	if (pTelemetry->Game.State != eGameState)
-	{
-		eGameState = pTelemetry->Game.State;
-
-		switch (eGameState)
-		{
-			case STelemetry::EState_Starting:
-				StatusBar_SetText(hwndStatusBar, SBP_GAMESTATE, szGameStarting);
-				break;
-			case STelemetry::EState_Menus:
-				StatusBar_SetText(hwndStatusBar, SBP_GAMESTATE, szGameMenus);
-				break;
-			case STelemetry::EState_Running:
-				StatusBar_SetText(hwndStatusBar, SBP_GAMESTATE, szGameRunning);
-				break;
-			case STelemetry::EState_Paused:
-				StatusBar_SetText(hwndStatusBar, SBP_GAMESTATE, szGamePaused);
-				break;
-		}
-	}
-
-	// Race state
-	if (pTelemetry->Race.State != eRaceState)
-	{
-		// Handle the start of a race (Race state changes from "BeforeState" to "Running")
-		if (eRaceState == STelemetry::ERaceState_BeforeState && pTelemetry->Race.State == STelemetry::ERaceState_Running)
-		{
-			uTopSpeed = 0;
-			nNbGearchanges = 0;
-			nNbBrakesUsed = 0;
-			bIsRumbling = pTelemetry->Vehicle.RumbleIntensity > uRumbleThreshold / 100.0f;
-			nNbRumbles = bIsRumbling ? 1 : 0;
-			bIsFullspeed = pTelemetry->Vehicle.InputGasPedal >= uFullspeedThreshold / 100.0f;
-			uFullspeedTime = 0;
-			uFullspeedTimestamp = pTelemetry->Vehicle.Timestamp;
-			bIsSlipping = pTelemetry->Vehicle.WheelsIsSliping[0] || pTelemetry->Vehicle.WheelsIsSliping[1] ||
-				pTelemetry->Vehicle.WheelsIsSliping[2] || pTelemetry->Vehicle.WheelsIsSliping[3];
-			uWheelSlipTime = 0;
-			uWheelSlipTimestamp = pTelemetry->Vehicle.Timestamp;
-			uMaxNbCheckpoints = 0;
-
-			// Add a new race to the list-view control and increment the number of attempts
-			if (ListView_AddRace(hwndListView, nRaceNumber + 1, COLUMN_AUTOFIT) != -1)
-				nRaceNumber++;
-
-			// Optionally add map UID, map name, player model, date and time to each race
-			if (dwColumns & COL_MAPUID)
-			{
-				MultiByteToWideChar(CP_UTF8, 0, pTelemetry->Game.MapId, -1, szText, _countof(szText));
-				ListView_AddRaceText(hwndListView, nRaceNumber, COLUMN_AUTOFIT, szMapIdentifier, szText);
-			}
-			if (dwColumns & COL_MAPNAME)
-			{
-				MultiByteToWideChar(CP_UTF8, 0, pTelemetry->Game.MapName, -1, szText, _countof(szText));
-				ListView_AddRaceText(hwndListView, nRaceNumber, COLUMN_AUTOFIT, szTrackName, szText);
-			}
-			if (dwColumns & COL_PLAYERMODEL)
-			{
-				MultiByteToWideChar(CP_UTF8, 0, pTelemetry->Game.GameplayVariant, -1, szText, _countof(szText));
-				ListView_AddRaceText(hwndListView, nRaceNumber, COLUMN_AUTOFIT, szPlayerModel, szText);
-			}
-			if (dwColumns & (COL_DATE | COL_TIME))
-			{
-				SYSTEMTIME st;
-				GetLocalTime(&st);
-				if (dwColumns & COL_DATE)
-				{
-					_sntprintf(szText, _countof(szText), TEXT("%02u-%02u-%02u"), st.wYear, st.wMonth, st.wDay);
-					ListView_AddRaceText(hwndListView, nRaceNumber, COLUMN_AUTOFIT, szDate, szText);
-				}
-				if (dwColumns & COL_TIME)
-				{
-					_sntprintf(szText, _countof(szText), TEXT("%02u:%02u:%02u"), st.wHour, st.wMinute, st.wSecond);
-					ListView_AddRaceText(hwndListView, nRaceNumber, COLUMN_AUTOFIT, szTime, szText);
-				}
-			}
-		}
-
-		// Handle the end of a race (Race state changes from "Running" to "Finished" or "BeforeStart")
-		if (eRaceState == STelemetry::ERaceState_Running && (pTelemetry->Race.State == STelemetry::ERaceState_Finished ||
-			pTelemetry->Race.State == STelemetry::ERaceState_BeforeState))
-		{
-			// Test if the checkpoint count has increased to differ between finished and restart
-			if (pTelemetry->Race.NbCheckpoints > uRaceNbCheckpoints)
-			{
-				bAddFinalColumns = TRUE;
-
-				if (bIsFullspeed)
-					uFullspeedTime += pTelemetry->Vehicle.Timestamp - uFullspeedTimestamp;
-				if (bIsSlipping)
-					uWheelSlipTime += pTelemetry->Vehicle.Timestamp - uWheelSlipTimestamp;
-			}
-			else if (bAutoDelete && ListView_DeleteRace(hwndListView, nRaceNumber) && nRaceNumber > 0)
-				nRaceNumber--;
-		}
-
-		eRaceState = pTelemetry->Race.State;
-
-		switch (eRaceState)
-		{
-			case STelemetry::ERaceState_BeforeState:
-				StatusBar_SetText(hwndStatusBar, SBP_RACESTATE, szRaceBeforeStart);
-				break;
-			case STelemetry::ERaceState_Running:
-				StatusBar_SetText(hwndStatusBar, SBP_RACESTATE, szRaceRunning);
-				break;
-			case STelemetry::ERaceState_Finished:
-				StatusBar_SetText(hwndStatusBar, SBP_RACESTATE, szRaceFinished);
-				break;
-		}
-	}
-
-	// Map name
-	if (strcmp(pTelemetry->Game.MapName, szMapName) != 0)
-	{
-		strncpy(szMapName, pTelemetry->Game.MapName, _countof(szMapName));
-
-		// Convert the received UTF-8 string to Unicode UTF-16
-		MultiByteToWideChar(CP_UTF8, 0, szMapName, -1, szText, _countof(szText));
-		// If a new map name exists, update the file name for data export
-		if (_tcslen(szText) > 0)
-			lstrcpyn(szFileName, szText, _countof(szFileName));
-
-		StatusBar_SetText(hwndStatusBar, SBP_MAPNAME, szText);
-	}
-
-	// Player model
-	if (strcmp(pTelemetry->Game.GameplayVariant, szGameplayVariant) != 0)
-	{
-		strncpy(szGameplayVariant, pTelemetry->Game.GameplayVariant, _countof(szGameplayVariant));
-
-		MultiByteToWideChar(CP_UTF8, 0, szGameplayVariant, -1, szText, _countof(szText));
-		StatusBar_SetText(hwndStatusBar, SBP_PLAYERMODEL, szText, TRUE);
-	}
-
-	// Race time
-	if (pTelemetry->Race.Time != uRaceTime)
-	{
-		uRaceTime = pTelemetry->Race.Time;
-
-		FormatTime(szText, _countof(szText), uRaceTime);
-		StatusBar_SetText(hwndStatusBar, SBP_RACETIME, szText, TRUE);
-	}
-
-	// Number of respawns
-	if (pTelemetry->Race.NbRespawns != uRaceNbRespawns)
-	{
-		uRaceNbRespawns = pTelemetry->Race.NbRespawns;
-
-		_sntprintf(szText, _countof(szText), szNbRespawns, uRaceNbRespawns);
-		StatusBar_SetText(hwndStatusBar, SBP_RESPAWNS, szText, TRUE);
-	}
-
-	// Number of checkpoints
-	if (pTelemetry->Race.NbCheckpoints != uRaceNbCheckpoints)
-	{
-		// Add the new checkpoint time to the list-view control
-		Nat32 uNewNbCheckpoints = pTelemetry->Race.NbCheckpoints;
-		if (uNewNbCheckpoints > 0 && uNewNbCheckpoints <= _countof(pTelemetry->Race.CheckpointTimes) &&
-			uNewNbCheckpoints > uMaxNbCheckpoints)
-		{
-			// BUGBUG: It looks like we can't be sure that the checkpoint time was also already updated!
-			if (dwColumns & COL_SECTORTIMES)
-				ListView_AddSectorTime(hwndListView, nRaceNumber, COLUMN_AUTOFIT, uNewNbCheckpoints,
-				pTelemetry->Race.CheckpointTimes[uNewNbCheckpoints - 1],
-				uNewNbCheckpoints >= 2 ? pTelemetry->Race.CheckpointTimes[uNewNbCheckpoints - 2] : 0);
-
-			if (dwColumns & COL_CHECKPOINTS)
-				ListView_AddCheckpointTime(hwndListView, nRaceNumber, COLUMN_AUTOFIT, uNewNbCheckpoints,
-				pTelemetry->Race.CheckpointTimes[uNewNbCheckpoints - 1]);
-		}
-
-		// Here we have to store the highest number of checkpoints per game client so that
-		// the list is not flooded with data when Maniaplanet and Turbo run simultaneously
-		if (uNewNbCheckpoints > uRaceNbCheckpoints)
-			uMaxNbCheckpoints = uNewNbCheckpoints;
-
-		uRaceNbCheckpoints = uNewNbCheckpoints;
-
-		_sntprintf(szText, _countof(szText), szNbCheckpoints, uRaceNbCheckpoints);
-		StatusBar_SetText(hwndStatusBar, SBP_CHECKPOINTS, szText, TRUE);
-	}
-
-	// Speed
-	if (pTelemetry->Vehicle.SpeedMeter != uVehicleSpeedMeter)
-	{
-		uVehicleSpeedMeter = pTelemetry->Vehicle.SpeedMeter;
-
-		if (bMilesPerHour)
-			_sntprintf(szText, _countof(szText), szSpeedMph, MulDiv(uVehicleSpeedMeter, 1000000, 1609344));
-		else
-			_sntprintf(szText, _countof(szText), szSpeedKmh, uVehicleSpeedMeter);
-		StatusBar_SetText(hwndStatusBar, SBP_SPEEDMETER, szText, TRUE);
-
-		if (uVehicleSpeedMeter > uTopSpeed)
-			uTopSpeed = uVehicleSpeedMeter;
-	}
-
-	// Revolutions per minute
-	if (pTelemetry->Vehicle.EngineRpm != fVehicleEngineRpm)
-	{
-		fVehicleEngineRpm = pTelemetry->Vehicle.EngineRpm;
-
-		_sntprintf(szText, _countof(szText), szEngineRpm, fVehicleEngineRpm);
-		StatusBar_SetText(hwndStatusBar, SBP_ENGINERPM, szText, TRUE);
-	}
-
-	// Gear
-	if (pTelemetry->Vehicle.EngineCurGear != nVehicleEngineCurGear)
-	{
-		nVehicleEngineCurGear = pTelemetry->Vehicle.EngineCurGear;
-
-		_sntprintf(szText, _countof(szText), szEngineCurGear, nVehicleEngineCurGear);
-		StatusBar_SetText(hwndStatusBar, SBP_CURGEAR, szText, TRUE);
-
-		nNbGearchanges++;
-	}
-
-	// Steering
-	if (pTelemetry->Vehicle.InputSteer != fVehicleInputSteer)
-	{
-		fVehicleInputSteer = pTelemetry->Vehicle.InputSteer;
-
-		if (hwndTBSteering != NULL)
-		{
-			LPARAM lPos = (LPARAM)(fVehicleInputSteer * 100.0);
-			SendMessage(hwndTBSteering, TBM_SETSELSTART, (WPARAM)TRUE, fVehicleInputSteer < 0.0f ? lPos : 0);
-			SendMessage(hwndTBSteering, TBM_SETSELEND, (WPARAM)TRUE, fVehicleInputSteer < 0.0f ? 0 : lPos);
-			SendMessage(hwndTBSteering, TBM_SETPOS, (WPARAM)TRUE, lPos);
-		}
-		else
-		{
-			_sntprintf(szText, _countof(szText), szSteering, fVehicleInputSteer * 100.0);
-			StatusBar_SetText(hwndStatusBar, SBP_STEERING, szText, TRUE);
-		}
-	}
-
-	// Gas pedal
-	if (pTelemetry->Vehicle.InputGasPedal != fVehicleInputGasPedal)
-	{
-		fVehicleInputGasPedal = pTelemetry->Vehicle.InputGasPedal;
-
-		if (hwndPBThrottle != NULL)
-			SendMessage(hwndPBThrottle, PBM_SETPOS, (WPARAM)((fVehicleInputGasPedal * 100.0) + 0.5), 0);
-		else
-		{
-			_sntprintf(szText, _countof(szText), szGasPedal, fVehicleInputGasPedal * 100.0);
-			StatusBar_SetText(hwndStatusBar, SBP_THROTTLE, szText, TRUE);
-		}
-
-		// Determine full throttle percentage per race. The default threshold of 0.85 does
-		// not take into account releasing the throttle during shifting (powershifting)
-		if (fVehicleInputGasPedal >= uFullspeedThreshold / 100.0f)
-		{
-			if (!bIsFullspeed)
-			{
-				bIsFullspeed = TRUE;
-				uFullspeedTimestamp = pTelemetry->Vehicle.Timestamp;
-			}
-		}
-		else
-		{
-			if (bIsFullspeed)
-			{
-				bIsFullspeed = FALSE;
-				uFullspeedTime += pTelemetry->Vehicle.Timestamp - uFullspeedTimestamp;
-			}
-		}
-	}
-
-	// Wheel slip
-	if (memcmp(&pTelemetry->Vehicle.WheelsIsSliping, &aWheelsIsSliping, sizeof(aWheelsIsSliping)) != 0)
-	{
-		memcpy(&aWheelsIsSliping, &pTelemetry->Vehicle.WheelsIsSliping, sizeof(aWheelsIsSliping));
-
-		// Determine the percentage of time per race in which at least one wheel is slipping.
-		if (aWheelsIsSliping[0] || aWheelsIsSliping[1] || aWheelsIsSliping[2] || aWheelsIsSliping[3])
-		{
-			if (!bIsSlipping)
-			{
-				bIsSlipping = TRUE;
-				uWheelSlipTimestamp = pTelemetry->Vehicle.Timestamp;
-			}
-		}
-		else
-		{
-			if (bIsSlipping)
-			{
-				bIsSlipping = FALSE;
-				uWheelSlipTime += pTelemetry->Vehicle.Timestamp - uWheelSlipTimestamp;
-			}
-		}
-	}
-
-	// Rumble intensity
-	if (pTelemetry->Vehicle.RumbleIntensity != fVehicleRumbleIntensity)
-	{
-		fVehicleRumbleIntensity = pTelemetry->Vehicle.RumbleIntensity;
-
-		if (hwndPBRumble != NULL)
-			SendMessage(hwndPBRumble, PBM_SETPOS, (WPARAM)((fVehicleRumbleIntensity * 100.0) + 0.5), 0);
-		else
-		{
-			_sntprintf(szText, _countof(szText), szRumbleIntensity, fVehicleRumbleIntensity * 100.0);
-			StatusBar_SetText(hwndStatusBar, SBP_RUMBLE, szText, TRUE);
-		}
-
-		// Determine number of rumbles per race
-		if (fVehicleRumbleIntensity > uRumbleThreshold / 100.0f)
-		{
-			if (!bIsRumbling)
-			{
-				bIsRumbling = TRUE;
-				nNbRumbles++;
-			}
-		}
-		else
-		{
-			if (bIsRumbling)
-				bIsRumbling = FALSE;
-		}
-	}
-
-	// Brake
-	if (pTelemetry->Vehicle.InputIsBraking != bVehicleInputIsBraking)
-	{
-		bVehicleInputIsBraking = pTelemetry->Vehicle.InputIsBraking;
-
-		StatusBar_SetText(hwndStatusBar, SBP_BRAKING, bVehicleInputIsBraking ? szBraking : TEXT(""), TRUE);
-
-		// Determine the number of braking operations with at least one wheel on the ground.
-		// BUGBUG: The transition between air braking and ground contact is not detected.
-		if (bVehicleInputIsBraking && (pTelemetry->Vehicle.WheelsIsGroundContact[0] || pTelemetry->Vehicle.WheelsIsGroundContact[1] ||
-			pTelemetry->Vehicle.WheelsIsGroundContact[2] || pTelemetry->Vehicle.WheelsIsGroundContact[3]))
-			nNbBrakesUsed++;
-	}
-
-	// Map UID
-	if (strcmp(pTelemetry->Game.MapId, szMapId) != 0)
-	{
-		lstrcpynA(szMapId, pTelemetry->Game.MapId, _countof(szMapId));
-
-		// Clear all races after map changes
-		if (strcmp(szMapId, "Unassigned") != 0)
-			if (ListView_DeleteAllRaces(hwndListView))
-				nRaceNumber = 0;
-	}
-
-	// Finally add race time, top speed and further statistics
-	if (bAddFinalColumns)
-	{
-		bAddFinalColumns = FALSE;
-
-		if (dwColumns & COL_RACETIME)
-			ListView_AddRaceTime(hwndListView, nRaceNumber, COLUMN_AUTOFIT, szRaceTime, uRaceTime);
-
-		if (dwColumns & COL_TOPSPEED)
-		{
-			if (bMilesPerHour)
-				ListView_AddRaceData(hwndListView, nRaceNumber, COLUMN_AUTOFIT, szTopSpeed, szSpeedMph,
-					MulDiv(uTopSpeed, 1000000, 1609344));
-			else
-				ListView_AddRaceData(hwndListView, nRaceNumber, COLUMN_AUTOFIT, szTopSpeed, szSpeedKmh, uTopSpeed);
-		}
-
-		if (dwColumns & COL_RESPAWNS)
-			ListView_AddRaceData(hwndListView, nRaceNumber, COLUMN_AUTOFIT, szRespawns, TEXT("%d"), uRaceNbRespawns);
-
-		if (dwColumns & COL_RUMBLES)
-			ListView_AddRaceData(hwndListView, nRaceNumber, COLUMN_AUTOFIT, szRumbles, TEXT("%d"), nNbRumbles);
-
-		if (dwColumns & COL_GEARCHANGES)
-			ListView_AddRaceData(hwndListView, nRaceNumber, COLUMN_AUTOFIT, szGearchanges, TEXT("%d"), nNbGearchanges);
-
-		if (dwColumns & COL_BRAKESUSED)
-			ListView_AddRaceData(hwndListView, nRaceNumber, COLUMN_AUTOFIT, szBrakesUsed, TEXT("%d"), nNbBrakesUsed);
-
-		if (dwColumns & COL_FULLSPEED)
-			ListView_AddRaceData(hwndListView, nRaceNumber, COLUMN_AUTOFIT, szFullspeed, TEXT("%d %%"), MulDiv(100, uFullspeedTime, uRaceTime));
-
-		if (dwColumns & COL_WHEELSLIP)
-			ListView_AddRaceData(hwndListView, nRaceNumber, COLUMN_AUTOFIT, szWheelSlip, TEXT("%d %%"), MulDiv(100, uWheelSlipTime, uRaceTime));
-	}
 }
 
 //

@@ -23,6 +23,7 @@ const TCHAR szGamePaused[] = TEXT("Game: Paused");
 const TCHAR szRaceBeforeStart[] = TEXT("Race: BeforeStart");
 const TCHAR szRaceRunning[] = TEXT("Race: Running");
 const TCHAR szRaceFinished[] = TEXT("Race: Finished");
+const TCHAR szRaceEliminated[] = TEXT("Race: Eliminated");
 const TCHAR szNbRespawns[] = TEXT("RSP: %d");
 const TCHAR szNbCheckpoints[] = TEXT("CP: %d");
 const TCHAR szSpeedKmh[] = TEXT("%d km/h");

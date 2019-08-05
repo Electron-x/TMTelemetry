@@ -2,6 +2,9 @@
 //
 #pragma once
 
+#include "maniaplanet_telemetry.h"
+using namespace NManiaPlanet;
+
 // List-view columns
 #define COL_DATE			0x0001
 #define COL_TIME			0x0002
@@ -39,3 +42,17 @@ typedef enum _STATUSBAR_PART
 	SBP_BRAKING,
 	SBP_LAST
 } STATUSBAR_PART;
+
+// Globals used in DoTelemetry.cpp
+extern HWND hwndListView;			// List-view control handle
+extern HWND hwndStatusBar;			// Status bar control handle
+extern HWND hwndTBSteering;			// Trackbar control handle
+extern HWND hwndPBThrottle;			// First progress bar control handle
+extern HWND hwndPBRumble;			// Second progress bar control handle
+extern Nat32 uHeaderVersion;		// STelemetry header version
+extern UINT uRumbleThreshold;		// Rumble intensity threshold
+extern UINT uFullspeedThreshold;	// Full throttle threshold
+extern BOOL bAutoDelete;			// Auto delete aborted races
+extern BOOL bMilesPerHour;			// Indicate mph instead of km/h
+extern DWORD dwColumns;				// List-view columns to show
+extern TCHAR szFileName[MAX_PATH];	// Data export file name
