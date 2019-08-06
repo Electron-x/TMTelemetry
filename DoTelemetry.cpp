@@ -9,21 +9,21 @@ void DoTelemetry(STelemetryData* pTelemetry)
 {
 	TCHAR szText[MAX_CONTROLTEXT];
 	static int nRaceNumber = 0; // Number of attempts
-	static BOOL bAddFinalColumns = FALSE; // Append some statistics after the end of each race
+	static BOOL bAddFinalColumns = FALSE; // Append some stats after the end of each race
 
-	// Static variables for storing values for the statistical data:
-	static Nat32 uTopSpeed = 0; // Top speed per race
-	static int nNbGearchanges = 0; // Number of gear changes per race
-	static int nNbBrakesUsed = 0; // Number of braking operations per race
-	static int nNbRumbles = 0; // Number of rumbles per race
-	static BOOL bIsRumbling = FALSE; // Are we rumbling right now?
-	static Nat32 uFullspeedTime = 0; // Total time at full throttle
+	// Static variables for storing values for the statistics:
+	static Nat32 uTopSpeed = 0;           // Top speed per race
+	static int   nNbGearchanges = 0;      // Number of gear changes per race
+	static int   nNbBrakesUsed = 0;       // Number of braking operations per race
+	static Nat32 uMaxNbCheckpoints = 0;   // Highest number of CPs per game client
+	static int   nNbRumbles = 0;          // Number of rumbles per race
+	static BOOL  bIsRumbling = FALSE;     // Are we rumbling right now?
+	static Nat32 uFullspeedTime = 0;      // Total time at full throttle
 	static Nat32 uFullspeedTimestamp = 0; // Full throttle timestamp
-	static BOOL bIsFullspeed = FALSE; // Are we going full throttle right now?
-	static Nat32 uWheelSlipTime = 0; // Total time of wheel slippage
+	static BOOL  bIsFullspeed = FALSE;    // Are we going full throttle right now?
+	static Nat32 uWheelSlipTime = 0;      // Total time of wheel slippage
 	static Nat32 uWheelSlipTimestamp = 0; // Wheel slip timestamp
-	static BOOL bIsSlipping = FALSE; // Is a wheel slipping right now?
-	static Nat32 uMaxNbCheckpoints = 0; // Highest number of CPs per game client
+	static BOOL  bIsSlipping = FALSE;     // Is a wheel slipping right now?
 
 	// Test for updated telemetry data records
 	if (pTelemetry->Current.UpdateNumber == pTelemetry->Previous.UpdateNumber)
@@ -31,7 +31,7 @@ void DoTelemetry(STelemetryData* pTelemetry)
 
 	pTelemetry->Previous.UpdateNumber = pTelemetry->Current.UpdateNumber;
 
-	// STelemetry header version; will be displayed in the About box
+	// STelemetry header version; will be displayed in the about box
 	if (pTelemetry->Current.Header.Version != uHeaderVersion)
 		uHeaderVersion = pTelemetry->Current.Header.Version;
 
@@ -67,10 +67,9 @@ void DoTelemetry(STelemetryData* pTelemetry)
 				SendMessage(hwndTBSteering, TBM_CLEARSEL, (WPARAM)TRUE, 0);
 				SendMessage(hwndTBSteering, TBM_SETPOS, (WPARAM)TRUE, 0);
 			}
-			if (hwndPBThrottle != NULL)
-				SendMessage(hwndPBThrottle, PBM_SETPOS, 0, 0);
-			if (hwndPBRumble != NULL)
-				SendMessage(hwndPBRumble, PBM_SETPOS, 0, 0);
+
+			if (hwndPBThrottle != NULL) SendMessage(hwndPBThrottle, PBM_SETPOS, 0, 0);
+			if (hwndPBRumble != NULL) SendMessage(hwndPBRumble, PBM_SETPOS, 0, 0);
 
 			return;	// Nothing to monitor
 
@@ -96,23 +95,26 @@ void DoTelemetry(STelemetryData* pTelemetry)
 	// Race state
 	if (pTelemetry->Current.Race.State != pTelemetry->Previous.Race.State)
 	{
-		// Handle the start of a race (Race state changes from "BeforeState" to "Running")
+		// Handle the start of a race (race state changes from "BeforeState" to "Running")
 		if (pTelemetry->Previous.Race.State == STelemetry::ERaceState_BeforeState &&
 			pTelemetry->Current.Race.State == STelemetry::ERaceState_Running)
 		{
 			uTopSpeed = 0;
 			nNbGearchanges = 0;
 			nNbBrakesUsed = 0;
+			uMaxNbCheckpoints = 0;
+
 			bIsRumbling = pTelemetry->Current.Vehicle.RumbleIntensity > uRumbleThreshold / 100.0f;
 			nNbRumbles = bIsRumbling ? 1 : 0;
-			bIsFullspeed = pTelemetry->Current.Vehicle.InputGasPedal >= uFullspeedThreshold / 100.0f;
+
 			uFullspeedTime = 0;
 			uFullspeedTimestamp = pTelemetry->Current.Vehicle.Timestamp;
-			bIsSlipping = pTelemetry->Current.Vehicle.WheelsIsSliping[0] || pTelemetry->Current.Vehicle.WheelsIsSliping[1] ||
-				pTelemetry->Current.Vehicle.WheelsIsSliping[2] || pTelemetry->Current.Vehicle.WheelsIsSliping[3];
+			bIsFullspeed = pTelemetry->Current.Vehicle.InputGasPedal >= uFullspeedThreshold / 100.0f;
+
 			uWheelSlipTime = 0;
 			uWheelSlipTimestamp = pTelemetry->Current.Vehicle.Timestamp;
-			uMaxNbCheckpoints = 0;
+			bIsSlipping = pTelemetry->Current.Vehicle.WheelsIsSliping[0] || pTelemetry->Current.Vehicle.WheelsIsSliping[1] ||
+				pTelemetry->Current.Vehicle.WheelsIsSliping[2] || pTelemetry->Current.Vehicle.WheelsIsSliping[3];
 
 			// Add a new race to the list-view control and increment the number of attempts
 			if (ListView_AddRace(hwndListView, nRaceNumber + 1, COLUMN_AUTOFIT) != -1)
@@ -124,25 +126,30 @@ void DoTelemetry(STelemetryData* pTelemetry)
 				MultiByteToWideChar(CP_UTF8, 0, pTelemetry->Current.Game.MapId, -1, szText, _countof(szText));
 				ListView_AddRaceText(hwndListView, nRaceNumber, COLUMN_AUTOFIT, szMapIdentifier, szText);
 			}
+
 			if (dwColumns & COL_MAPNAME)
 			{
 				MultiByteToWideChar(CP_UTF8, 0, pTelemetry->Current.Game.MapName, -1, szText, _countof(szText));
 				ListView_AddRaceText(hwndListView, nRaceNumber, COLUMN_AUTOFIT, szTrackName, szText);
 			}
+
 			if (dwColumns & COL_PLAYERMODEL)
 			{
 				MultiByteToWideChar(CP_UTF8, 0, pTelemetry->Current.Game.GameplayVariant, -1, szText, _countof(szText));
 				ListView_AddRaceText(hwndListView, nRaceNumber, COLUMN_AUTOFIT, szPlayerModel, szText);
 			}
+
 			if (dwColumns & (COL_DATE | COL_TIME))
 			{
 				SYSTEMTIME st;
 				GetLocalTime(&st);
+
 				if (dwColumns & COL_DATE)
 				{
 					_sntprintf(szText, _countof(szText), TEXT("%02u-%02u-%02u"), st.wYear, st.wMonth, st.wDay);
 					ListView_AddRaceText(hwndListView, nRaceNumber, COLUMN_AUTOFIT, szDate, szText);
 				}
+
 				if (dwColumns & COL_TIME)
 				{
 					_sntprintf(szText, _countof(szText), TEXT("%02u:%02u:%02u"), st.wHour, st.wMinute, st.wSecond);
@@ -151,7 +158,7 @@ void DoTelemetry(STelemetryData* pTelemetry)
 			}
 		}
 
-		// Handle the end of a race (Race state changes from "Running" to "Finished" or "BeforeStart")
+		// Handle the end of a race (race state changes from "Running" to "Finished" or "BeforeStart")
 		if (pTelemetry->Previous.Race.State == STelemetry::ERaceState_Running &&
 			(pTelemetry->Current.Race.State == STelemetry::ERaceState_Finished ||
 				pTelemetry->Current.Race.State == STelemetry::ERaceState_BeforeState))
@@ -163,6 +170,7 @@ void DoTelemetry(STelemetryData* pTelemetry)
 
 				if (bIsFullspeed)
 					uFullspeedTime += pTelemetry->Current.Vehicle.Timestamp - uFullspeedTimestamp;
+
 				if (bIsSlipping)
 					uWheelSlipTime += pTelemetry->Current.Vehicle.Timestamp - uWheelSlipTimestamp;
 			}
@@ -175,15 +183,19 @@ void DoTelemetry(STelemetryData* pTelemetry)
 		case STelemetry::ERaceState_BeforeState:
 			StatusBar_SetText(hwndStatusBar, SBP_RACESTATE, szRaceBeforeStart);
 			break;
+
 		case STelemetry::ERaceState_Running:
 			StatusBar_SetText(hwndStatusBar, SBP_RACESTATE, szRaceRunning);
 			break;
+
 		case STelemetry::ERaceState_Finished:
 			StatusBar_SetText(hwndStatusBar, SBP_RACESTATE, szRaceFinished);
 			break;
-			//case STelemetry::ERaceState_Eliminated:
-			//	StatusBar_SetText(hwndStatusBar, SBP_RACESTATE, szRaceEliminated);
-			//	break;
+
+		//case STelemetry::ERaceState_Eliminated:
+		//	StatusBar_SetText(hwndStatusBar, SBP_RACESTATE, szRaceEliminated);
+		//	break;
+
 		default:
 			StatusBar_SetText(hwndStatusBar, SBP_RACESTATE, TEXT(""));
 		}
@@ -269,14 +281,14 @@ void DoTelemetry(STelemetryData* pTelemetry)
 	{
 		Nat32 uCurrentSpeedMeter = pTelemetry->Current.Vehicle.SpeedMeter;
 
+		if (uCurrentSpeedMeter > uTopSpeed)
+			uTopSpeed = uCurrentSpeedMeter;
+
 		if (bMilesPerHour)
 			_sntprintf(szText, _countof(szText), szSpeedMph, MulDiv(uCurrentSpeedMeter, 1000000, 1609344));
 		else
 			_sntprintf(szText, _countof(szText), szSpeedKmh, uCurrentSpeedMeter);
 		StatusBar_SetText(hwndStatusBar, SBP_SPEEDMETER, szText, TRUE);
-
-		if (uCurrentSpeedMeter > uTopSpeed)
-			uTopSpeed = uCurrentSpeedMeter;
 
 		pTelemetry->Previous.Vehicle.SpeedMeter = uCurrentSpeedMeter;
 	}
@@ -293,10 +305,10 @@ void DoTelemetry(STelemetryData* pTelemetry)
 	// Gear
 	if (pTelemetry->Current.Vehicle.EngineCurGear != pTelemetry->Previous.Vehicle.EngineCurGear)
 	{
+		nNbGearchanges++;
+
 		_sntprintf(szText, _countof(szText), szEngineCurGear, pTelemetry->Current.Vehicle.EngineCurGear);
 		StatusBar_SetText(hwndStatusBar, SBP_CURGEAR, szText, TRUE);
-
-		nNbGearchanges++;
 
 		pTelemetry->Previous.Vehicle.EngineCurGear = pTelemetry->Current.Vehicle.EngineCurGear;
 	}
@@ -327,16 +339,8 @@ void DoTelemetry(STelemetryData* pTelemetry)
 	{
 		float fCurrentInputGasPedal = pTelemetry->Current.Vehicle.InputGasPedal;
 
-		if (hwndPBThrottle != NULL)
-			SendMessage(hwndPBThrottle, PBM_SETPOS, (WPARAM)((fCurrentInputGasPedal * 100.0) + 0.5), 0);
-		else
-		{
-			_sntprintf(szText, _countof(szText), szGasPedal, fCurrentInputGasPedal * 100.0);
-			StatusBar_SetText(hwndStatusBar, SBP_THROTTLE, szText, TRUE);
-		}
-
-		// Determine full throttle percentage per race. The default threshold of 0.85 does
-		// not take into account releasing the throttle during shifting (powershifting)
+		// Determine full throttle percentage per race. The default threshold
+		// of 0.85 compensates that the game throttles down during shifting.
 		if (fCurrentInputGasPedal >= uFullspeedThreshold / 100.0f)
 		{
 			if (!bIsFullspeed)
@@ -352,6 +356,14 @@ void DoTelemetry(STelemetryData* pTelemetry)
 				bIsFullspeed = FALSE;
 				uFullspeedTime += pTelemetry->Current.Vehicle.Timestamp - uFullspeedTimestamp;
 			}
+		}
+
+		if (hwndPBThrottle != NULL)
+			SendMessage(hwndPBThrottle, PBM_SETPOS, (WPARAM)((fCurrentInputGasPedal * 100.0) + 0.5), 0);
+		else
+		{
+			_sntprintf(szText, _countof(szText), szGasPedal, fCurrentInputGasPedal * 100.0);
+			StatusBar_SetText(hwndStatusBar, SBP_THROTTLE, szText, TRUE);
 		}
 
 		pTelemetry->Previous.Vehicle.InputGasPedal = fCurrentInputGasPedal;
@@ -389,14 +401,6 @@ void DoTelemetry(STelemetryData* pTelemetry)
 	{
 		float fCurrentRumbleIntensity = pTelemetry->Current.Vehicle.RumbleIntensity;
 
-		if (hwndPBRumble != NULL)
-			SendMessage(hwndPBRumble, PBM_SETPOS, (WPARAM)((fCurrentRumbleIntensity * 100.0) + 0.5), 0);
-		else
-		{
-			_sntprintf(szText, _countof(szText), szRumbleIntensity, fCurrentRumbleIntensity * 100.0);
-			StatusBar_SetText(hwndStatusBar, SBP_RUMBLE, szText, TRUE);
-		}
-
 		// Determine number of rumbles per race
 		if (fCurrentRumbleIntensity > uRumbleThreshold / 100.0f)
 		{
@@ -410,6 +414,14 @@ void DoTelemetry(STelemetryData* pTelemetry)
 		{
 			if (bIsRumbling)
 				bIsRumbling = FALSE;
+		}
+
+		if (hwndPBRumble != NULL)
+			SendMessage(hwndPBRumble, PBM_SETPOS, (WPARAM)((fCurrentRumbleIntensity * 100.0) + 0.5), 0);
+		else
+		{
+			_sntprintf(szText, _countof(szText), szRumbleIntensity, fCurrentRumbleIntensity * 100.0);
+			StatusBar_SetText(hwndStatusBar, SBP_RUMBLE, szText, TRUE);
 		}
 
 		pTelemetry->Previous.Vehicle.RumbleIntensity = fCurrentRumbleIntensity;
@@ -433,7 +445,7 @@ void DoTelemetry(STelemetryData* pTelemetry)
 	// Map UID
 	if (strcmp(pTelemetry->Current.Game.MapId, pTelemetry->Previous.Game.MapId) != 0)
 	{
-		// Clear all races after map changes
+		// Clear all races after map change
 		if (strcmp(pTelemetry->Current.Game.MapId, "Unassigned") != 0)
 			if (ListView_DeleteAllRaces(hwndListView))
 				nRaceNumber = 0;
@@ -487,27 +499,29 @@ void DoTelemetry(STelemetryData* pTelemetry)
 // after program start and at the start of each game session
 void InitTelemetryData(STelemetryData* pTelemetry)
 {
-	if (pTelemetry != NULL)
-	{
-		// As a precaution, set all member variables to zero
-		memset(&pTelemetry->Previous, 0, sizeof(pTelemetry->Previous));
+	if (pTelemetry == NULL)
+		return;
 
-		// Set all variables that can be zero at startup to a different value
-		pTelemetry->Previous.Game.State = (STelemetry::EGameState) - 1;
-		pTelemetry->Previous.Race.State = (STelemetry::ERaceState) - 1;
-		pTelemetry->Previous.Race.Time = (Nat32)-2;	// -1 is a regular value
-		pTelemetry->Previous.Race.NbRespawns = (Nat32)-2;	// -1 is a regular value
-		pTelemetry->Previous.Race.NbCheckpoints = (Nat32)-1;
-		pTelemetry->Previous.Vehicle.InputSteer = -2.0f;	// -1.0 is a regular value
-		pTelemetry->Previous.Vehicle.InputGasPedal = -1.0f;
-		pTelemetry->Previous.Vehicle.InputIsBraking = (Bool)-1;
-		pTelemetry->Previous.Vehicle.EngineRpm = -1.0f;
-		pTelemetry->Previous.Vehicle.EngineCurGear = -1;
-		pTelemetry->Previous.Vehicle.WheelsIsSliping[0] = (Bool)-1;
-		pTelemetry->Previous.Vehicle.WheelsIsSliping[1] = (Bool)-1;
-		pTelemetry->Previous.Vehicle.WheelsIsSliping[2] = (Bool)-1;
-		pTelemetry->Previous.Vehicle.WheelsIsSliping[3] = (Bool)-1;
-		pTelemetry->Previous.Vehicle.RumbleIntensity = -1.0f;
-		pTelemetry->Previous.Vehicle.SpeedMeter = (Nat32)-1;
-	}
+	// As a precaution, set all member variables to zero
+	memset(&pTelemetry->Previous, 0, sizeof(pTelemetry->Previous));
+
+	// Set all variables that can be zero at startup to a different value
+	pTelemetry->Previous.Game.State = (STelemetry::EGameState)-1;
+
+	pTelemetry->Previous.Race.State = (STelemetry::ERaceState)-1;
+	pTelemetry->Previous.Race.Time = (Nat32)-2;	// -1 is a regular value
+	pTelemetry->Previous.Race.NbRespawns = (Nat32)-2;	// -1 is a regular value
+	pTelemetry->Previous.Race.NbCheckpoints = (Nat32)-1;
+
+	pTelemetry->Previous.Vehicle.InputSteer = -2.0f;	// -1.0 is a regular value
+	pTelemetry->Previous.Vehicle.InputGasPedal = -1.0f;
+	pTelemetry->Previous.Vehicle.InputIsBraking = (Bool)-1;
+	pTelemetry->Previous.Vehicle.EngineRpm = -1.0f;
+	pTelemetry->Previous.Vehicle.EngineCurGear = -1;
+	pTelemetry->Previous.Vehicle.WheelsIsSliping[0] = (Bool)-1;
+	pTelemetry->Previous.Vehicle.WheelsIsSliping[1] = (Bool)-1;
+	pTelemetry->Previous.Vehicle.WheelsIsSliping[2] = (Bool)-1;
+	pTelemetry->Previous.Vehicle.WheelsIsSliping[3] = (Bool)-1;
+	pTelemetry->Previous.Vehicle.RumbleIntensity = -1.0f;
+	pTelemetry->Previous.Vehicle.SpeedMeter = (Nat32)-1;
 }
