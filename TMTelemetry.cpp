@@ -428,7 +428,7 @@ BOOL WndProc_OnCreate(HWND hwnd, LPCREATESTRUCT lpCreateStruct)
 	SetWindowFont(hwndStatusBar, GetStockFont(DEFAULT_GUI_FONT), FALSE);
 
 	// Set the number of parts and the coordinate of the right edge of each part
-	int aStatusBarParts[15] = { 125, 235, 385, 480, 555, 605, 650, 715, 790, 850, 940, 1030, 1120, 1180, -1 };
+	int aStatusBarParts[15] = { 125, 235, 385, 480, 555, 620, 665, 730, 805, 865, 955, 1045, 1135, 1195, -1 };
 	SIZE_T uParts = _countof(aStatusBarParts);
 	for (SIZE_T i = 0; i < (uParts - 1); i++)
 		aStatusBarParts[i] = MulDiv(aStatusBarParts[i], nDpi, USER_DEFAULT_SCREEN_DPI);

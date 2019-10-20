@@ -38,7 +38,7 @@ struct STelemetry {
     };
     struct SGameState {
         EGameState  State;
-        char        GameplayVariant[64];    // environment name 'stadium' 'canyon', ....
+        char        GameplayVariant[64];    // player model 'StadiumCar', 'CanyonCar', ....
         char        MapId[64];
         char        MapName[256];
         char        __future__[128];
@@ -49,14 +49,16 @@ struct STelemetry {
         Nat32       NbRespawns;
         Nat32       NbCheckpoints;
         Nat32       CheckpointTimes[125];
-        char        __future__[32];
+        Nat32       NbCheckpointsPerLap;    // new since Maniaplanet update 2019-10-10; not supported by Trackmania Turbo.
+        Nat32       NbLaps;                 // new since Maniaplanet update 2019-10-10; not supported by Trackmania Turbo.
+        char        __future__[24];
     };
     struct SObjectState {
         Nat32       Timestamp;
         Nat32       DiscontinuityCount;     // the number changes everytime the object is moved not continuously (== teleported).
         Quat        Rotation;
-		Vec3        Translation;			// +x is "left", +y is "up", +z is "front"
-		Vec3        Velocity;				// (world velocity)
+        Vec3        Translation;            // +x is "left", +y is "up", +z is "front"
+        Vec3        Velocity;               // (world velocity)
         Nat32       LatestStableGroundContactTime;
         char        __future__[32];
     };

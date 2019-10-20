@@ -139,6 +139,21 @@ BOOL StatusBar_SetText(HWND hwndCtl, UINT uIndexType, LPCTSTR lpszText, BOOL bCe
 	}
 }
 
+BOOL StatusBar_SetLapCount(HWND hwndCtl, UINT uIndexType, UINT uCurrentLap, UINT uNumberOfLaps, BOOL bCenter)
+{
+	TCHAR szText[MAX_CONTROLTEXT];
+
+	if (hwndCtl == NULL)
+		return FALSE;
+
+	if (uNumberOfLaps == 0)
+		_sntprintf(szText, _countof(szText), szCurLap, uCurrentLap);
+	else
+		_sntprintf(szText, _countof(szText), szNbLaps, uCurrentLap, uNumberOfLaps);
+
+	return StatusBar_SetText(hwndCtl, uIndexType, szText, bCenter);
+}
+
 
 void ListView_SelectAll(HWND hwndCtl)
 {

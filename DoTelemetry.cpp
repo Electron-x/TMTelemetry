@@ -4,11 +4,17 @@
 #include "dotelemetry.h"
 #include "tmtelemetry.h"
 
+// Forward declarations
+BOOL IsRaceBeforeStart(STelemetryData* pTelemetry);
+BOOL IsRaceRunning(STelemetryData* pTelemetry);
+BOOL IsRaceFinished(STelemetryData* pTelemetry);
+
 // Processing of the telemetry data
 void DoTelemetry(STelemetryData* pTelemetry)
 {
 	TCHAR szText[MAX_CONTROLTEXT];
 	static int nRaceNumber = 0; // Number of attempts
+	static Nat32 uLapCount = 0; // Current lap
 	static BOOL bAddFinalColumns = FALSE; // Append some stats after the end of each race
 
 	// Static variables for storing values for the statistics:
@@ -95,9 +101,38 @@ void DoTelemetry(STelemetryData* pTelemetry)
 	// Race state
 	if (pTelemetry->Current.Race.State != pTelemetry->Previous.Race.State)
 	{
-		// Handle the start of a race (race state changes from "BeforeState" to "Running")
-		if (pTelemetry->Previous.Race.State == STelemetry::ERaceState_BeforeState &&
-			pTelemetry->Current.Race.State == STelemetry::ERaceState_Running)
+		switch (pTelemetry->Current.Race.State)
+		{
+		case STelemetry::ERaceState_BeforeState:
+			StatusBar_SetText(hwndStatusBar, SBP_RACESTATE, szRaceBeforeStart);
+			break;
+
+		case STelemetry::ERaceState_Running:
+			StatusBar_SetText(hwndStatusBar, SBP_RACESTATE, szRaceRunning);
+			break;
+
+		case STelemetry::ERaceState_Finished:
+			StatusBar_SetText(hwndStatusBar, SBP_RACESTATE, szRaceFinished);
+			break;
+
+		//case STelemetry::ERaceState_Eliminated:
+		//	StatusBar_SetText(hwndStatusBar, SBP_RACESTATE, szRaceEliminated);
+		//	break;
+
+		default:
+			StatusBar_SetText(hwndStatusBar, SBP_RACESTATE, TEXT(""));
+		}
+
+		// Handle the countdown
+		if (IsRaceBeforeStart(pTelemetry))
+		{
+			// Reset the lap counter
+			uLapCount = 0;
+			StatusBar_SetLapCount(hwndStatusBar, SBP_LAPS, uLapCount, pTelemetry->Current.Race.NbLaps);
+		}
+
+		// Handle the start of a race
+		if (IsRaceRunning(pTelemetry))
 		{
 			uTopSpeed = 0;
 			nNbGearchanges = 0;
@@ -115,6 +150,10 @@ void DoTelemetry(STelemetryData* pTelemetry)
 			uWheelSlipTimestamp = pTelemetry->Current.Vehicle.Timestamp;
 			bIsSlipping = pTelemetry->Current.Vehicle.WheelsIsSliping[0] || pTelemetry->Current.Vehicle.WheelsIsSliping[1] ||
 				pTelemetry->Current.Vehicle.WheelsIsSliping[2] || pTelemetry->Current.Vehicle.WheelsIsSliping[3];
+
+			// Set the lap counter to 1
+			uLapCount = 1;
+			StatusBar_SetLapCount(hwndStatusBar, SBP_LAPS, uLapCount, pTelemetry->Current.Race.NbLaps);
 
 			// Add a new race to the list-view control and increment the number of attempts
 			if (ListView_AddRace(hwndListView, nRaceNumber + 1, COLUMN_AUTOFIT) != -1)
@@ -158,10 +197,8 @@ void DoTelemetry(STelemetryData* pTelemetry)
 			}
 		}
 
-		// Handle the end of a race (race state changes from "Running" to "Finished" or "BeforeStart")
-		if (pTelemetry->Previous.Race.State == STelemetry::ERaceState_Running &&
-			(pTelemetry->Current.Race.State == STelemetry::ERaceState_Finished ||
-				pTelemetry->Current.Race.State == STelemetry::ERaceState_BeforeState))
+		// Handle the end of a race
+		if (IsRaceFinished(pTelemetry))
 		{
 			// Test if the checkpoint count has increased to differ between finished and restart
 			if (pTelemetry->Current.Race.NbCheckpoints > pTelemetry->Previous.Race.NbCheckpoints)
@@ -178,29 +215,59 @@ void DoTelemetry(STelemetryData* pTelemetry)
 				nRaceNumber--;
 		}
 
-		switch (pTelemetry->Current.Race.State)
+		pTelemetry->Previous.Race.State = pTelemetry->Current.Race.State;
+	}
+
+	// Number of checkpoints
+	if (pTelemetry->Current.Race.NbCheckpoints != pTelemetry->Previous.Race.NbCheckpoints)
+	{
+		// Add the new checkpoint time to the list-view control
+		Nat32 uCurrentNbCheckpoints = pTelemetry->Current.Race.NbCheckpoints;
+		if (uCurrentNbCheckpoints > 0 && uCurrentNbCheckpoints <= _countof(pTelemetry->Current.Race.CheckpointTimes) &&
+			uCurrentNbCheckpoints > uMaxNbCheckpoints)
 		{
-		case STelemetry::ERaceState_BeforeState:
-			StatusBar_SetText(hwndStatusBar, SBP_RACESTATE, szRaceBeforeStart);
-			break;
+			if (dwColumns & COL_SECTORTIMES)
+				ListView_AddSectorTime(hwndListView, nRaceNumber, COLUMN_AUTOFIT, uCurrentNbCheckpoints,
+					pTelemetry->Current.Race.CheckpointTimes[uCurrentNbCheckpoints - 1],
+					uCurrentNbCheckpoints >= 2 ? pTelemetry->Current.Race.CheckpointTimes[uCurrentNbCheckpoints - 2] : 0);
 
-		case STelemetry::ERaceState_Running:
-			StatusBar_SetText(hwndStatusBar, SBP_RACESTATE, szRaceRunning);
-			break;
-
-		case STelemetry::ERaceState_Finished:
-			StatusBar_SetText(hwndStatusBar, SBP_RACESTATE, szRaceFinished);
-			break;
-
-		//case STelemetry::ERaceState_Eliminated:
-		//	StatusBar_SetText(hwndStatusBar, SBP_RACESTATE, szRaceEliminated);
-		//	break;
-
-		default:
-			StatusBar_SetText(hwndStatusBar, SBP_RACESTATE, TEXT(""));
+			if (dwColumns & COL_CHECKPOINTS)
+				ListView_AddCheckpointTime(hwndListView, nRaceNumber, COLUMN_AUTOFIT, uCurrentNbCheckpoints,
+					pTelemetry->Current.Race.CheckpointTimes[uCurrentNbCheckpoints - 1]);
 		}
 
-		pTelemetry->Previous.Race.State = pTelemetry->Current.Race.State;
+		// Update the lap counter after crossing the start/finish line
+		Nat32 uCurrentLap = uLapCount;
+		Nat32 uNumberOfLaps = pTelemetry->Current.Race.NbLaps;	// Could be zero
+		Nat32 uCheckpointsPerLap = pTelemetry->Current.Race.NbCheckpointsPerLap;	// Always 0 with Trackmania Turbo
+		
+		if (uCheckpointsPerLap != 0)
+		{
+			uCurrentLap = uCurrentNbCheckpoints / uCheckpointsPerLap;
+			// Correct the lap counter by one, except on restart and when crossing the finish line
+			if (uCurrentNbCheckpoints != 0 && (uCurrentLap < uNumberOfLaps || uNumberOfLaps == 0))
+				uCurrentLap++;
+			// Keep the number of laps driven after the race is over
+			if (uCurrentLap < uLapCount)
+				uCurrentLap = uLapCount;
+		}
+		
+		if (uCurrentLap != uLapCount)
+		{
+			uLapCount = uCurrentLap;
+			StatusBar_SetLapCount(hwndStatusBar, SBP_LAPS, uLapCount, uNumberOfLaps);
+		}
+
+		// Update the checkpoint counter
+		_sntprintf(szText, _countof(szText), szNbCheckpoints, uCurrentNbCheckpoints);
+		StatusBar_SetText(hwndStatusBar, SBP_CHECKPOINTS, szText, TRUE);
+
+		// Here we have to store the highest number of checkpoints per game client so that
+		// the list is not flooded with data when Maniaplanet and Turbo run simultaneously
+		if (uCurrentNbCheckpoints > pTelemetry->Previous.Race.NbCheckpoints)
+			uMaxNbCheckpoints = uCurrentNbCheckpoints;
+
+		pTelemetry->Previous.Race.NbCheckpoints = uCurrentNbCheckpoints;
 	}
 
 	// Map name
@@ -235,45 +302,6 @@ void DoTelemetry(STelemetryData* pTelemetry)
 		StatusBar_SetText(hwndStatusBar, SBP_RACETIME, szText, TRUE);
 
 		pTelemetry->Previous.Race.Time = pTelemetry->Current.Race.Time;
-	}
-
-	// Number of respawns
-	if (pTelemetry->Current.Race.NbRespawns != pTelemetry->Previous.Race.NbRespawns)
-	{
-		_sntprintf(szText, _countof(szText), szNbRespawns, pTelemetry->Current.Race.NbRespawns);
-		StatusBar_SetText(hwndStatusBar, SBP_RESPAWNS, szText, TRUE);
-
-		pTelemetry->Previous.Race.NbRespawns = pTelemetry->Current.Race.NbRespawns;
-	}
-
-	// Number of checkpoints
-	if (pTelemetry->Current.Race.NbCheckpoints != pTelemetry->Previous.Race.NbCheckpoints)
-	{
-		// Add the new checkpoint time to the list-view control
-		Nat32 uCurrentNbCheckpoints = pTelemetry->Current.Race.NbCheckpoints;
-		if (uCurrentNbCheckpoints > 0 && uCurrentNbCheckpoints <= _countof(pTelemetry->Current.Race.CheckpointTimes) &&
-			uCurrentNbCheckpoints > uMaxNbCheckpoints)
-		{
-			// BUGBUG: It looks like we can't be sure that the checkpoint time was also already updated!
-			if (dwColumns & COL_SECTORTIMES)
-				ListView_AddSectorTime(hwndListView, nRaceNumber, COLUMN_AUTOFIT, uCurrentNbCheckpoints,
-					pTelemetry->Current.Race.CheckpointTimes[uCurrentNbCheckpoints - 1],
-					uCurrentNbCheckpoints >= 2 ? pTelemetry->Current.Race.CheckpointTimes[uCurrentNbCheckpoints - 2] : 0);
-
-			if (dwColumns & COL_CHECKPOINTS)
-				ListView_AddCheckpointTime(hwndListView, nRaceNumber, COLUMN_AUTOFIT, uCurrentNbCheckpoints,
-					pTelemetry->Current.Race.CheckpointTimes[uCurrentNbCheckpoints - 1]);
-		}
-
-		// Here we have to store the highest number of checkpoints per game client so that
-		// the list is not flooded with data when Maniaplanet and Turbo run simultaneously
-		if (uCurrentNbCheckpoints > pTelemetry->Previous.Race.NbCheckpoints)
-			uMaxNbCheckpoints = uCurrentNbCheckpoints;
-
-		_sntprintf(szText, _countof(szText), szNbCheckpoints, uCurrentNbCheckpoints);
-		StatusBar_SetText(hwndStatusBar, SBP_CHECKPOINTS, szText, TRUE);
-
-		pTelemetry->Previous.Race.NbCheckpoints = uCurrentNbCheckpoints;
 	}
 
 	// Speed
@@ -445,10 +473,16 @@ void DoTelemetry(STelemetryData* pTelemetry)
 	// Map UID
 	if (strcmp(pTelemetry->Current.Game.MapId, pTelemetry->Previous.Game.MapId) != 0)
 	{
-		// Clear all races after map change
 		if (strcmp(pTelemetry->Current.Game.MapId, "Unassigned") != 0)
+		{
+			// Clear all races after map change
 			if (ListView_DeleteAllRaces(hwndListView))
 				nRaceNumber = 0;
+
+			// Reset the lap counter
+			uLapCount = 0;
+			StatusBar_SetLapCount(hwndStatusBar, SBP_LAPS, uLapCount, pTelemetry->Current.Race.NbLaps);
+		}
 
 		lstrcpynA(pTelemetry->Previous.Game.MapId, pTelemetry->Current.Game.MapId, _countof(pTelemetry->Previous.Game.MapId));
 	}
@@ -512,6 +546,8 @@ void InitTelemetryData(STelemetryData* pTelemetry)
 	pTelemetry->Previous.Race.Time = (Nat32)-2;	// -1 is a regular value
 	pTelemetry->Previous.Race.NbRespawns = (Nat32)-2;	// -1 is a regular value
 	pTelemetry->Previous.Race.NbCheckpoints = (Nat32)-1;
+	pTelemetry->Previous.Race.NbCheckpointsPerLap = (Nat32)-1;
+	pTelemetry->Previous.Race.NbLaps = (Nat32)-1;
 
 	pTelemetry->Previous.Vehicle.InputSteer = -2.0f;	// -1.0 is a regular value
 	pTelemetry->Previous.Vehicle.InputGasPedal = -1.0f;
@@ -524,4 +560,27 @@ void InitTelemetryData(STelemetryData* pTelemetry)
 	pTelemetry->Previous.Vehicle.WheelsIsSliping[3] = (Bool)-1;
 	pTelemetry->Previous.Vehicle.RumbleIntensity = -1.0f;
 	pTelemetry->Previous.Vehicle.SpeedMeter = (Nat32)-1;
+}
+
+// Checks if the countdown has just started (race state changes from "Finished" or "Running" to "BeforeStart")
+__inline BOOL IsRaceBeforeStart(STelemetryData* pTelemetry)
+{
+	return ((pTelemetry->Previous.Race.State == STelemetry::ERaceState_Finished ||
+		pTelemetry->Previous.Race.State == STelemetry::ERaceState_Running) &&
+		pTelemetry->Current.Race.State == STelemetry::ERaceState_BeforeState);
+}
+
+// Checks if the race has just started (race state changes from "BeforeStart" to "Running")
+__inline BOOL IsRaceRunning(STelemetryData* pTelemetry)
+{
+	return (pTelemetry->Previous.Race.State == STelemetry::ERaceState_BeforeState &&
+		pTelemetry->Current.Race.State == STelemetry::ERaceState_Running);
+}
+
+// Checks if the race has just finished (race state changes from "Running" to "Finished" or "BeforeStart")
+__inline BOOL IsRaceFinished(STelemetryData* pTelemetry)
+{
+	return (pTelemetry->Previous.Race.State == STelemetry::ERaceState_Running &&
+		(pTelemetry->Current.Race.State == STelemetry::ERaceState_Finished ||
+			pTelemetry->Current.Race.State == STelemetry::ERaceState_BeforeState));
 }
