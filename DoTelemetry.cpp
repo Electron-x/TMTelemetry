@@ -151,7 +151,7 @@ void DoTelemetry(STelemetryData* pTelemetry)
 			bIsSlipping = pTelemetry->Current.Vehicle.WheelsIsSliping[0] || pTelemetry->Current.Vehicle.WheelsIsSliping[1] ||
 				pTelemetry->Current.Vehicle.WheelsIsSliping[2] || pTelemetry->Current.Vehicle.WheelsIsSliping[3];
 
-			// Set the lap counter to 1
+			// Set the lap counter to 1 (the number of checkpoints crossed remains 0 at start)
 			uLapCount = 1;
 			StatusBar_SetLapCount(hwndStatusBar, SBP_LAPS, uLapCount, pTelemetry->Current.Race.NbLaps);
 
@@ -546,8 +546,6 @@ void InitTelemetryData(STelemetryData* pTelemetry)
 	pTelemetry->Previous.Race.Time = (Nat32)-2;	// -1 is a regular value
 	pTelemetry->Previous.Race.NbRespawns = (Nat32)-2;	// -1 is a regular value
 	pTelemetry->Previous.Race.NbCheckpoints = (Nat32)-1;
-	pTelemetry->Previous.Race.NbCheckpointsPerLap = (Nat32)-1;
-	pTelemetry->Previous.Race.NbLaps = (Nat32)-1;
 
 	pTelemetry->Previous.Vehicle.InputSteer = -2.0f;	// -1.0 is a regular value
 	pTelemetry->Previous.Vehicle.InputGasPedal = -1.0f;
@@ -563,7 +561,7 @@ void InitTelemetryData(STelemetryData* pTelemetry)
 }
 
 // Checks if the countdown has just started (race state changes from "Finished" or "Running" to "BeforeStart")
-__inline BOOL IsRaceBeforeStart(STelemetryData* pTelemetry)
+static __inline BOOL IsRaceBeforeStart(STelemetryData* pTelemetry)
 {
 	return ((pTelemetry->Previous.Race.State == STelemetry::ERaceState_Finished ||
 		pTelemetry->Previous.Race.State == STelemetry::ERaceState_Running) &&
@@ -571,14 +569,14 @@ __inline BOOL IsRaceBeforeStart(STelemetryData* pTelemetry)
 }
 
 // Checks if the race has just started (race state changes from "BeforeStart" to "Running")
-__inline BOOL IsRaceRunning(STelemetryData* pTelemetry)
+static __inline BOOL IsRaceRunning(STelemetryData* pTelemetry)
 {
 	return (pTelemetry->Previous.Race.State == STelemetry::ERaceState_BeforeState &&
 		pTelemetry->Current.Race.State == STelemetry::ERaceState_Running);
 }
 
 // Checks if the race has just finished (race state changes from "Running" to "Finished" or "BeforeStart")
-__inline BOOL IsRaceFinished(STelemetryData* pTelemetry)
+static __inline BOOL IsRaceFinished(STelemetryData* pTelemetry)
 {
 	return (pTelemetry->Previous.Race.State == STelemetry::ERaceState_Running &&
 		(pTelemetry->Current.Race.State == STelemetry::ERaceState_Finished ||
