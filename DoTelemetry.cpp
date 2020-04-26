@@ -234,6 +234,10 @@ void DoTelemetry(STelemetryData* pTelemetry)
 			if (dwColumns & COL_CHECKPOINTS)
 				ListView_AddCheckpointTime(hwndListView, nRaceNumber, COLUMN_AUTOFIT, uCurrentNbCheckpoints,
 					pTelemetry->Current.Race.CheckpointTimes[uCurrentNbCheckpoints - 1]);
+			if (dwColumns & COL_CPSPEED) {
+				ListView_AddCheckpointSpeed(hwndListView, nRaceNumber, COLUMN_AUTOFIT, uCurrentNbCheckpoints,
+					pTelemetry->Current.Vehicle.SpeedMeter);
+			}
 		}
 
 		// Update the lap counter after crossing the start/finish line
