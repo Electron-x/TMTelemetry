@@ -497,13 +497,13 @@ int ListView_AddCheckpointTime(HWND hwndCtl, int nRaceNumber, int nColumnWidth, 
 	return ListView_AddRaceText(hwndCtl, nRaceNumber, nColumnWidth, szHeading, szTime);
 }
 
-int ListView_AddCheckpointSpeed(HWND hwndCtl, int nRaceNumber, int nColumnWidth, int nCheckpointNumber, int nCheckpointSpeed)
+int ListView_AddCheckpointSpeed(HWND hwndCtl, int nRaceNumber, int nColumnWidth, int nCheckpointNumber, LPCTSTR lpszFormat, int nCheckpointSpeed)
 {
 	TCHAR szHeading[MAX_CONTROLTEXT];
 	TCHAR szSpeed[MAX_CONTROLTEXT];
 
 	_sntprintf(szHeading, _countof(szHeading), szCheckpointSpeed, nCheckpointNumber);
-	_sntprintf(szSpeed, _countof(szSpeed), szCheckpointSpeedFormat, nCheckpointSpeed);
+	_sntprintf(szSpeed, _countof(szSpeed), lpszFormat, nCheckpointSpeed);
 
 	return ListView_AddRaceText(hwndCtl, nRaceNumber, nColumnWidth, szHeading, szSpeed);
 }

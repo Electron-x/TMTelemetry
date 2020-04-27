@@ -235,8 +235,13 @@ void DoTelemetry(STelemetryData* pTelemetry)
 				ListView_AddCheckpointTime(hwndListView, nRaceNumber, COLUMN_AUTOFIT, uCurrentNbCheckpoints,
 					pTelemetry->Current.Race.CheckpointTimes[uCurrentNbCheckpoints - 1]);
 			if (dwColumns & COL_CPSPEED) {
-				ListView_AddCheckpointSpeed(hwndListView, nRaceNumber, COLUMN_AUTOFIT, uCurrentNbCheckpoints,
-					pTelemetry->Current.Vehicle.SpeedMeter);
+
+				if (bMilesPerHour)
+					ListView_AddCheckpointSpeed(hwndListView, nRaceNumber, COLUMN_AUTOFIT, uCurrentNbCheckpoints, szSpeedMph,
+						MulDiv(pTelemetry->Current.Vehicle.SpeedMeter, 1000000, 1609344));
+				else
+					ListView_AddCheckpointSpeed(hwndListView, nRaceNumber, COLUMN_AUTOFIT, uCurrentNbCheckpoints, szSpeedKmh,
+						pTelemetry->Current.Vehicle.SpeedMeter);
 			}
 		}
 

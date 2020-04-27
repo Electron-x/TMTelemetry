@@ -47,7 +47,6 @@ const TCHAR szPlayerModel[] = TEXT("Player Model");
 const TCHAR szSector[] = TEXT("Sector %d");
 const TCHAR szCheckpoint[] = TEXT("CP %d");
 const TCHAR szCheckpointSpeed[] = TEXT("Speed %d");
-const TCHAR szCheckpointSpeedFormat[] = TEXT("%d km/h");
 const TCHAR szRaceTime[] = TEXT("Race Time");
 const TCHAR szTopSpeed[] = TEXT("Top Speed");
 const TCHAR szRespawns[] = TEXT("Respawns");
@@ -84,7 +83,7 @@ int  ListView_AddRaceTime(HWND hwndCtl, int nRaceNumber, int nColumnWidth, LPCTS
 int  ListView_AddRaceText(HWND hwndCtl, int nRaceNumber, int nColumnWidth, LPCTSTR lpszHeading, LPCTSTR lpszText);
 int  ListView_AddRaceData(HWND hwndCtl, int nRaceNumber, int nColumnWidth, LPCTSTR lpszHeading, LPCTSTR lpszFormat, int nData);
 int  ListView_AddCheckpointTime(HWND hwndCtl, int nRaceNumber, int nColumnWidth, int nCheckpointNumber, int nCheckpointTime);
-int  ListView_AddCheckpointSpeed(HWND hwndCtl, int nRaceNumber, int nColumnWidth, int nCheckpointNumber, int nCheckpointTime);
+int  ListView_AddCheckpointSpeed(HWND hwndCtl, int nRaceNumber, int nColumnWidth, int nCheckpointNumber, LPCTSTR lpszHeading, int nCheckpointTime);
 int  ListView_AddSectorTime(HWND hwndCtl, int nRaceNumber, int nColumnWidth, int nSectorNumber, int nCurrentTime, int nPreviousTime = 0);
 
 BOOL ListView_DeleteRace(HWND hwndCtl, int nRaceNumber = INDEX_CURRENT);
