@@ -592,6 +592,9 @@ void WndProc_OnCommand(HWND hwnd, int id, HWND hwndCtl, UINT codeNotify)
 			dwColumns ^= COL_WHEELSLIP;
 			break;
 
+		case ID_VIEW_HIGHLIGHTCPREC:
+			dwColumns ^= COL_HIGHLIGHTCPREC;
+
 		case ID_VIEW_AUTOFITCOLUMNS:
 			ListView_AutoSizeAllColumns(hwndListView);
 			break;
@@ -725,6 +728,9 @@ void WndProc_OnInitMenuPopup(HWND hwnd, HMENU hMenu, UINT item, BOOL fSystemMenu
 
 			uFlags = (dwColumns & COL_WHEELSLIP) ? MF_CHECKED : MF_UNCHECKED;
 			CheckMenuItem(hMenu, ID_VIEW_WHEELSLIP, MF_BYCOMMAND | uFlags);
+
+			uFlags = (dwColumns & COL_HIGHLIGHTCPREC) ? MF_CHECKED : MF_UNCHECKED;
+			CheckMenuItem(hMenu, ID_VIEW_HIGHLIGHTCPREC, MF_BYCOMMAND | uFlags);
 
 			uFlags = (ListView_GetColumnCount(hwndListView) > 0) ? MF_ENABLED : MF_DISABLED | MF_GRAYED;
 			EnableMenuItem(hMenu, ID_VIEW_AUTOFITCOLUMNS, uFlags);
