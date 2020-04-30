@@ -30,6 +30,8 @@ void DoTelemetry(STelemetryData* pTelemetry)
 	static Nat32 uWheelSlipTime = 0;      // Total time of wheel slippage
 	static Nat32 uWheelSlipTimestamp = 0; // Wheel slip timestamp
 	static BOOL  bIsSlipping = FALSE;     // Is a wheel slipping right now?
+	static vector<Nat32> uCPTopspeed;     // Vector of the current top speeds at each CP
+	static vector<Nat32> uCPTopRacenumber;  // Saves the race numbers of the cp records
 
 	// Test for updated telemetry data records
 	if (pTelemetry->Current.UpdateNumber == pTelemetry->Previous.UpdateNumber)
@@ -237,12 +239,57 @@ void DoTelemetry(STelemetryData* pTelemetry)
 
 			if (dwColumns & COL_CPSPEED)
 			{
-				if (bMilesPerHour)
-					ListView_AddCheckpointSpeed(hwndListView, nRaceNumber, COLUMN_AUTOFIT, uCurrentNbCheckpoints, szSpeedMph,
-						MulDiv(pTelemetry->Current.Vehicle.SpeedMeter, 1000000, 1609344));
-				else
-					ListView_AddCheckpointSpeed(hwndListView, nRaceNumber, COLUMN_AUTOFIT, uCurrentNbCheckpoints, szSpeedKmh,
-						pTelemetry->Current.Vehicle.SpeedMeter);
+				Nat32 uCurrentSpeedMeter = pTelemetry->Current.Vehicle.SpeedMeter;
+				if (dwColumns & COL_HIGHLIGHTCPREC)
+				{
+					// When a new checkpoint is reached for the first time, the size of uCPTopspeed has to increase by 1.
+					// If you start the program during a race, you have to add more. Otherwise a vector out of range error would raise.
+					while (uCPTopspeed.size() < uCurrentNbCheckpoints || uCPTopRacenumber.size() < nRaceNumber - 1 )
+					{
+						uCPTopspeed.push_back(0);  // new value is initialized with 0
+						uCPTopRacenumber.push_back(nRaceNumber); // new value is initialized with the current Race number
+					}
+
+					if (uCurrentSpeedMeter > uCPTopspeed[uCurrentNbCheckpoints - 1])  // If the current speed at the CP is greater than the previous record at that CP
+					{
+						if (nRaceNumber != uCPTopRacenumber[uCurrentNbCheckpoints - 1]) // Remove the old CP record highlight
+						{
+							if (bMilesPerHour)
+								ListView_AddCheckpointSpeed(hwndListView, uCPTopRacenumber[uCurrentNbCheckpoints - 1], COLUMN_AUTOFIT, uCurrentNbCheckpoints, szSpeedMph,
+									MulDiv(uCPTopspeed[uCurrentNbCheckpoints - 1], 1000000, 1609344), TRUE);
+							else
+								ListView_AddCheckpointSpeed(hwndListView, uCPTopRacenumber[uCurrentNbCheckpoints - 1], COLUMN_AUTOFIT, uCurrentNbCheckpoints, szSpeedKmh,
+									uCPTopspeed[uCurrentNbCheckpoints - 1], TRUE);
+						}
+
+						if (bMilesPerHour) // Set the new record highlight
+							ListView_AddCheckpointSpeed(hwndListView, nRaceNumber, COLUMN_AUTOFIT, uCurrentNbCheckpoints, szTopspeedMph,
+								MulDiv(uCurrentSpeedMeter, 1000000, 1609344));
+						else
+							ListView_AddCheckpointSpeed(hwndListView, nRaceNumber, COLUMN_AUTOFIT, uCurrentNbCheckpoints, szTopspeedKmh,
+								uCurrentSpeedMeter);
+						uCPTopspeed[uCurrentNbCheckpoints - 1] = uCurrentSpeedMeter;  // Update the record vectors
+						uCPTopRacenumber[uCurrentNbCheckpoints - 1] = nRaceNumber;
+					}
+					else // If no new record is reached
+					{
+						if (bMilesPerHour)
+							ListView_AddCheckpointSpeed(hwndListView, nRaceNumber, COLUMN_AUTOFIT, uCurrentNbCheckpoints, szSpeedMph,
+								MulDiv(uCurrentSpeedMeter, 1000000, 1609344));
+						else
+							ListView_AddCheckpointSpeed(hwndListView, nRaceNumber, COLUMN_AUTOFIT, uCurrentNbCheckpoints, szSpeedKmh,
+								uCurrentSpeedMeter);
+					}
+				}
+				else // If CPSPEED is enabled but without highlighting
+				{
+					if (bMilesPerHour)
+						ListView_AddCheckpointSpeed(hwndListView, nRaceNumber, COLUMN_AUTOFIT, uCurrentNbCheckpoints, szSpeedMph,
+							MulDiv(uCurrentSpeedMeter, 1000000, 1609344));
+					else
+						ListView_AddCheckpointSpeed(hwndListView, nRaceNumber, COLUMN_AUTOFIT, uCurrentNbCheckpoints, szSpeedKmh,
+							uCurrentSpeedMeter);
+				}
 			}
 		}
 
@@ -250,7 +297,7 @@ void DoTelemetry(STelemetryData* pTelemetry)
 		Nat32 uCurrentLap = uLapCount;
 		Nat32 uNumberOfLaps = pTelemetry->Current.Race.NbLaps;	// Could be zero
 		Nat32 uCheckpointsPerLap = pTelemetry->Current.Race.NbCheckpointsPerLap;	// Always 0 with Trackmania Turbo
-		
+
 		if (uCheckpointsPerLap != 0)
 		{
 			uCurrentLap = uCurrentNbCheckpoints / uCheckpointsPerLap;
@@ -261,7 +308,7 @@ void DoTelemetry(STelemetryData* pTelemetry)
 			if (uCurrentLap < uLapCount)
 				uCurrentLap = uLapCount;
 		}
-		
+
 		if (uCurrentLap != uLapCount)
 		{
 			uLapCount = uCurrentLap;
@@ -487,7 +534,11 @@ void DoTelemetry(STelemetryData* pTelemetry)
 		{
 			// Clear all races after map change
 			if (ListView_DeleteAllRaces(hwndListView))
+			{
 				nRaceNumber = 0;
+				uCPTopRacenumber.clear();
+				uCPTopspeed.clear();
+			}
 
 			// Reset the lap counter
 			uLapCount = 0;
