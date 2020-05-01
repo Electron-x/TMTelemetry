@@ -556,6 +556,10 @@ void WndProc_OnCommand(HWND hwnd, int id, HWND hwndCtl, UINT codeNotify)
 			dwColumns ^= COL_CHECKPOINTS;
 			break;
 
+		case ID_VIEW_CPSPEED:
+			dwColumns ^= COL_CPSPEED;
+			break;
+
 		case ID_VIEW_RACETIME:
 			dwColumns ^= COL_RACETIME;
 			break;
@@ -694,6 +698,9 @@ void WndProc_OnInitMenuPopup(HWND hwnd, HMENU hMenu, UINT item, BOOL fSystemMenu
 
 			uFlags = (dwColumns & COL_CHECKPOINTS) ? MF_CHECKED : MF_UNCHECKED;
 			CheckMenuItem(hMenu, ID_VIEW_CHECKPOINTS, MF_BYCOMMAND | uFlags);
+
+			uFlags = (dwColumns & COL_CPSPEED) ? MF_CHECKED : MF_UNCHECKED;
+			CheckMenuItem(hMenu, ID_VIEW_CPSPEED, MF_BYCOMMAND | uFlags);
 
 			uFlags = (dwColumns & COL_RACETIME) ? MF_CHECKED : MF_UNCHECKED;
 			CheckMenuItem(hMenu, ID_VIEW_RACETIME, MF_BYCOMMAND | uFlags);
