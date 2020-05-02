@@ -399,7 +399,7 @@ int ListView_AddRace(HWND hwndCtl, int nRaceNumber, int nColumnWidth)
 	return iIndex;
 }
 
-int ListView_AddRaceText(HWND hwndCtl, int nRaceNumber, int nColumnWidth, LPCTSTR lpszHeading, LPCTSTR lpszText)
+int ListView_AddRaceText(HWND hwndCtl, int nRaceNumber, int nColumnWidth, LPCTSTR lpszHeading, LPCTSTR lpszText, BOOL changeRaceText)
 {
 	if (hwndCtl == NULL)
 		return -1;
@@ -464,8 +464,9 @@ int ListView_AddRaceText(HWND hwndCtl, int nRaceNumber, int nColumnWidth, LPCTST
 	if (nColumnWidth < 0)
 		ListView_AutoSizeColumn(hwndCtl, nColumnIndex);
 
-	// Increment the list-view column index
-	nColumnIndex++;
+	if (!changeRaceText)  // BOOL changeRaceText is TRUE when the text of a subitem is only changed and no new subitem is added
+		// Increment the list-view column index
+		nColumnIndex++;
 
 	return nColumnIndex;
 }
@@ -497,7 +498,7 @@ int ListView_AddCheckpointTime(HWND hwndCtl, int nRaceNumber, int nColumnWidth, 
 	return ListView_AddRaceText(hwndCtl, nRaceNumber, nColumnWidth, szHeading, szTime);
 }
 
-int ListView_AddCheckpointSpeed(HWND hwndCtl, int nRaceNumber, int nColumnWidth, int nCheckpointNumber, LPCTSTR lpszFormat, int nCheckpointSpeed)
+int ListView_AddCheckpointSpeed(HWND hwndCtl, int nRaceNumber, int nColumnWidth, int nCheckpointNumber, LPCTSTR lpszFormat, int nCheckpointSpeed, BOOL changeRaceText)
 {
 	TCHAR szHeading[MAX_CONTROLTEXT];
 	TCHAR szSpeed[MAX_CONTROLTEXT];
@@ -505,7 +506,7 @@ int ListView_AddCheckpointSpeed(HWND hwndCtl, int nRaceNumber, int nColumnWidth,
 	_sntprintf(szHeading, _countof(szHeading), szCheckpointSpeed, nCheckpointNumber);
 	_sntprintf(szSpeed, _countof(szSpeed), lpszFormat, nCheckpointSpeed);
 
-	return ListView_AddRaceText(hwndCtl, nRaceNumber, nColumnWidth, szHeading, szSpeed);
+	return ListView_AddRaceText(hwndCtl, nRaceNumber, nColumnWidth, szHeading, szSpeed, changeRaceText);
 }
 
 int ListView_AddSectorTime(HWND hwndCtl, int nRaceNumber, int nColumnWidth, int nSectorNumber, int nCurrentTime, int nPreviousTime)

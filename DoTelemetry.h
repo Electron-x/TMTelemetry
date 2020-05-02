@@ -3,6 +3,8 @@
 #pragma once
 
 #include "maniaplanet_telemetry.h"
+#include <vector>
+using std::vector;
 using namespace NManiaPlanet;
 
 struct STelemetryData

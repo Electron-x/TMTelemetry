@@ -1,4 +1,4 @@
-// Helper.h : Helper functions
+﻿// Helper.h : Helper functions
 //
 #pragma once
 
@@ -28,7 +28,9 @@ const TCHAR szCurLap[] = TEXT("Lap: %d");
 const TCHAR szNbLaps[] = TEXT("Lap: %d/%d");
 const TCHAR szNbCheckpoints[] = TEXT("CP: %d");
 const TCHAR szSpeedKmh[] = TEXT("%d km/h");
+const TCHAR szTopspeedKmh[] = TEXT("🡺 %d km/h 🡸");
 const TCHAR szSpeedMph[] = TEXT("%d mph");
+const TCHAR szTopspeedMph[] = TEXT("🡺 %d mph 🡸");
 const TCHAR szEngineRpm[] = TEXT("%.0f rpm");
 const TCHAR szEngineCurGear[] = TEXT("Gear: %d");
 const TCHAR szSteering[] = TEXT("Steering: %3.0f %%");
@@ -79,10 +81,10 @@ LPARAM ListView_GetContextMenuPoint(HWND hwndCtl);
 
 int  ListView_AddRace(HWND hwndCtl, int nRaceNumber, int nColumnWidth = COLUMN_AUTOFIT);
 int  ListView_AddRaceTime(HWND hwndCtl, int nRaceNumber, int nColumnWidth, LPCTSTR lpszHeading, int nTime);
-int  ListView_AddRaceText(HWND hwndCtl, int nRaceNumber, int nColumnWidth, LPCTSTR lpszHeading, LPCTSTR lpszText);
+int  ListView_AddRaceText(HWND hwndCtl, int nRaceNumber, int nColumnWidth, LPCTSTR lpszHeading, LPCTSTR lpszText, BOOL changeRaceText = FALSE);
 int  ListView_AddRaceData(HWND hwndCtl, int nRaceNumber, int nColumnWidth, LPCTSTR lpszHeading, LPCTSTR lpszFormat, int nData);
 int  ListView_AddCheckpointTime(HWND hwndCtl, int nRaceNumber, int nColumnWidth, int nCheckpointNumber, int nCheckpointTime);
-int  ListView_AddCheckpointSpeed(HWND hwndCtl, int nRaceNumber, int nColumnWidth, int nCheckpointNumber, LPCTSTR lpszHeading, int nCheckpointTime);
+int  ListView_AddCheckpointSpeed(HWND hwndCtl, int nRaceNumber, int nColumnWidth, int nCheckpointNumber, LPCTSTR lpszHeading, int nCheckpointTime, BOOL changeRaceText = FALSE);
 int  ListView_AddSectorTime(HWND hwndCtl, int nRaceNumber, int nColumnWidth, int nSectorNumber, int nCurrentTime, int nPreviousTime = 0);
 
 BOOL ListView_DeleteRace(HWND hwndCtl, int nRaceNumber = INDEX_CURRENT);
