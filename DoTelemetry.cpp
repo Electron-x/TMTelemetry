@@ -13,8 +13,9 @@ BOOL IsRaceFinished(STelemetryData* pTelemetry);
 void DoTelemetry(STelemetryData* pTelemetry)
 {
 	TCHAR szText[MAX_CONTROLTEXT];
-	static int nRaceNumber = 0; // Number of attempts
-	static Nat32 uLapCount = 0; // Current lap
+	static int nRaceNumber = 0;           // Number of attempts
+	static int nNbRaceFinished = 0;       // Number of triggered finishes
+	static Nat32 uLapCount = 0;           // Current lap
 	static BOOL bAddFinalColumns = FALSE; // Append some stats after the end of each race
 
 	// Static variables for storing values for the statistics:
@@ -123,99 +124,111 @@ void DoTelemetry(STelemetryData* pTelemetry)
 			StatusBar_SetText(hwndStatusBar, SBP_RACESTATE, TEXT(""));
 		}
 
-		// Handle the countdown
-		if (IsRaceBeforeStart(pTelemetry))
+		// Trackmania 2020 inserts certain records that make it difficult to detect the change of
+		// the race state. Currently, the easiest way to recognize these is that the GameplayVariant
+		// field is set to "Unassigned". In the following, these records will simply be skipped.
+		if (strcmp(pTelemetry->Current.Game.GameplayVariant, "Unassigned") != 0)
 		{
-			// Reset the lap counter
-			uLapCount = 0;
-			StatusBar_SetLapCount(hwndStatusBar, SBP_LAPS, uLapCount, pTelemetry->Current.Race.NbLaps);
-		}
-
-		// Handle the start of a race
-		if (IsRaceRunning(pTelemetry))
-		{
-			uTopSpeed = 0;
-			nNbGearchanges = 0;
-			nNbBrakesUsed = 0;
-			uMaxNbCheckpoints = 0;
-
-			bIsRumbling = pTelemetry->Current.Vehicle.RumbleIntensity > uRumbleThreshold / 100.0f;
-			nNbRumbles = bIsRumbling ? 1 : 0;
-
-			uFullspeedTime = 0;
-			uFullspeedTimestamp = pTelemetry->Current.Vehicle.Timestamp;
-			bIsFullspeed = pTelemetry->Current.Vehicle.InputGasPedal >= uFullspeedThreshold / 100.0f;
-
-			uWheelSlipTime = 0;
-			uWheelSlipTimestamp = pTelemetry->Current.Vehicle.Timestamp;
-			bIsSlipping = pTelemetry->Current.Vehicle.WheelsIsSliping[0] || pTelemetry->Current.Vehicle.WheelsIsSliping[1] ||
-				pTelemetry->Current.Vehicle.WheelsIsSliping[2] || pTelemetry->Current.Vehicle.WheelsIsSliping[3];
-
-			// Set the lap counter to 1 (the number of checkpoints crossed remains 0 at start)
-			uLapCount = 1;
-			StatusBar_SetLapCount(hwndStatusBar, SBP_LAPS, uLapCount, pTelemetry->Current.Race.NbLaps);
-
-			// Add a new race to the list-view control and increment the number of attempts
-			if (ListView_AddRace(hwndListView, nRaceNumber + 1, COLUMN_AUTOFIT) != -1)
-				nRaceNumber++;
-
-			// Optionally add map UID, map name, player model, date and time to each race
-			if (dwColumns & COL_MAPUID)
+			// Handle the countdown
+			if (IsRaceBeforeStart(pTelemetry))
 			{
-				MultiByteToWideChar(CP_UTF8, 0, pTelemetry->Current.Game.MapId, -1, szText, _countof(szText));
-				ListView_AddRaceText(hwndListView, nRaceNumber, COLUMN_AUTOFIT, szMapIdentifier, szText);
+				// Reset the lap counter
+				uLapCount = 0;
+				StatusBar_SetLapCount(hwndStatusBar, SBP_LAPS, uLapCount, pTelemetry->Current.Race.NbLaps);
 			}
 
-			if (dwColumns & COL_MAPNAME)
+			// Handle the start of a race
+			if (IsRaceRunning(pTelemetry))
 			{
-				MultiByteToWideChar(CP_UTF8, 0, pTelemetry->Current.Game.MapName, -1, szText, _countof(szText));
-				ListView_AddRaceText(hwndListView, nRaceNumber, COLUMN_AUTOFIT, szTrackName, szText);
-			}
+				uTopSpeed = 0;
+				nNbGearchanges = 0;
+				nNbBrakesUsed = 0;
+				uMaxNbCheckpoints = 0;
+				nNbRaceFinished = 0;
 
-			if (dwColumns & COL_PLAYERMODEL)
-			{
-				MultiByteToWideChar(CP_UTF8, 0, pTelemetry->Current.Game.GameplayVariant, -1, szText, _countof(szText));
-				ListView_AddRaceText(hwndListView, nRaceNumber, COLUMN_AUTOFIT, szPlayerModel, szText);
-			}
+				bIsRumbling = pTelemetry->Current.Vehicle.RumbleIntensity > uRumbleThreshold / 100.0f;
+				nNbRumbles = bIsRumbling ? 1 : 0;
 
-			if (dwColumns & (COL_DATE | COL_TIME))
-			{
-				SYSTEMTIME st;
-				GetLocalTime(&st);
+				uFullspeedTime = 0;
+				uFullspeedTimestamp = pTelemetry->Current.Vehicle.Timestamp;
+				bIsFullspeed = pTelemetry->Current.Vehicle.InputGasPedal >= uFullspeedThreshold / 100.0f;
 
-				if (dwColumns & COL_DATE)
+				uWheelSlipTime = 0;
+				uWheelSlipTimestamp = pTelemetry->Current.Vehicle.Timestamp;
+				bIsSlipping = pTelemetry->Current.Vehicle.WheelsIsSliping[0] || pTelemetry->Current.Vehicle.WheelsIsSliping[1] ||
+					pTelemetry->Current.Vehicle.WheelsIsSliping[2] || pTelemetry->Current.Vehicle.WheelsIsSliping[3];
+
+				// Set the lap counter to 1 (the number of checkpoints crossed remains 0 at start)
+				uLapCount = 1;
+				StatusBar_SetLapCount(hwndStatusBar, SBP_LAPS, uLapCount, pTelemetry->Current.Race.NbLaps);
+
+				// Add a new race to the list-view control and increment the number of attempts
+				if (ListView_AddRace(hwndListView, nRaceNumber + 1, COLUMN_AUTOFIT) != -1)
+					nRaceNumber++;
+
+				// Optionally add map UID, map name, player model, date and time to each race
+				if (dwColumns & COL_MAPUID)
 				{
-					_sntprintf(szText, _countof(szText), TEXT("%02u-%02u-%02u"), st.wYear, st.wMonth, st.wDay);
-					ListView_AddRaceText(hwndListView, nRaceNumber, COLUMN_AUTOFIT, szDate, szText);
+					MultiByteToWideChar(CP_UTF8, 0, pTelemetry->Current.Game.MapId, -1, szText, _countof(szText));
+					ListView_AddRaceText(hwndListView, nRaceNumber, COLUMN_AUTOFIT, szMapIdentifier, szText);
 				}
 
-				if (dwColumns & COL_TIME)
+				if (dwColumns & COL_MAPNAME)
 				{
-					_sntprintf(szText, _countof(szText), TEXT("%02u:%02u:%02u"), st.wHour, st.wMinute, st.wSecond);
-					ListView_AddRaceText(hwndListView, nRaceNumber, COLUMN_AUTOFIT, szTime, szText);
+					MultiByteToWideChar(CP_UTF8, 0, pTelemetry->Current.Game.MapName, -1, szText, _countof(szText));
+					ListView_AddRaceText(hwndListView, nRaceNumber, COLUMN_AUTOFIT, szTrackName, szText);
+				}
+
+				if (dwColumns & COL_PLAYERMODEL)
+				{
+					MultiByteToWideChar(CP_UTF8, 0, pTelemetry->Current.Game.GameplayVariant, -1, szText, _countof(szText));
+					ListView_AddRaceText(hwndListView, nRaceNumber, COLUMN_AUTOFIT, szPlayerModel, szText);
+				}
+
+				if (dwColumns & (COL_DATE | COL_TIME))
+				{
+					SYSTEMTIME st;
+					GetLocalTime(&st);
+
+					if (dwColumns & COL_DATE)
+					{
+						_sntprintf(szText, _countof(szText), TEXT("%02u-%02u-%02u"), st.wYear, st.wMonth, st.wDay);
+						ListView_AddRaceText(hwndListView, nRaceNumber, COLUMN_AUTOFIT, szDate, szText);
+					}
+
+					if (dwColumns & COL_TIME)
+					{
+						_sntprintf(szText, _countof(szText), TEXT("%02u:%02u:%02u"), st.wHour, st.wMinute, st.wSecond);
+						ListView_AddRaceText(hwndListView, nRaceNumber, COLUMN_AUTOFIT, szTime, szText);
+					}
 				}
 			}
-		}
 
-		// Handle the end of a race
-		if (IsRaceFinished(pTelemetry))
-		{
-			// Test if the checkpoint count has increased to differ between finished and restart
-			if (pTelemetry->Current.Race.NbCheckpoints > pTelemetry->Previous.Race.NbCheckpoints)
+			// Handle the end of a race
+			if (IsRaceFinished(pTelemetry))
 			{
-				bAddFinalColumns = TRUE;
+				if (nNbRaceFinished == 0)
+				{
+					// Test if the checkpoint count has increased to differ between finished and restart
+					if (pTelemetry->Current.Race.NbCheckpoints > pTelemetry->Previous.Race.NbCheckpoints)
+					{
+						bAddFinalColumns = TRUE;
 
-				if (bIsFullspeed)
-					uFullspeedTime += pTelemetry->Current.Vehicle.Timestamp - uFullspeedTimestamp;
+						if (bIsFullspeed)
+							uFullspeedTime += pTelemetry->Current.Vehicle.Timestamp - uFullspeedTimestamp;
 
-				if (bIsSlipping)
-					uWheelSlipTime += pTelemetry->Current.Vehicle.Timestamp - uWheelSlipTimestamp;
+						if (bIsSlipping)
+							uWheelSlipTime += pTelemetry->Current.Vehicle.Timestamp - uWheelSlipTimestamp;
+					}
+					else if (bAutoDelete && ListView_DeleteRace(hwndListView, nRaceNumber) && nRaceNumber > 0)
+						nRaceNumber--;
+				}
+
+				nNbRaceFinished++;
 			}
-			else if (bAutoDelete && ListView_DeleteRace(hwndListView, nRaceNumber) && nRaceNumber > 0)
-				nRaceNumber--;
-		}
 
-		pTelemetry->Previous.Race.State = pTelemetry->Current.Race.State;
+			pTelemetry->Previous.Race.State = pTelemetry->Current.Race.State;
+		}
 	}
 
 	// Number of checkpoints
@@ -224,7 +237,7 @@ void DoTelemetry(STelemetryData* pTelemetry)
 		// Add the new checkpoint time to the list-view control
 		Nat32 uCurrentNbCheckpoints = pTelemetry->Current.Race.NbCheckpoints;
 		if (uCurrentNbCheckpoints > 0 && uCurrentNbCheckpoints <= _countof(pTelemetry->Current.Race.CheckpointTimes) &&
-			uCurrentNbCheckpoints > uMaxNbCheckpoints)
+			uCurrentNbCheckpoints > uMaxNbCheckpoints && nNbRaceFinished <= 1)
 		{
 			if (dwColumns & COL_SECTORTIMES)
 				ListView_AddSectorTime(hwndListView, nRaceNumber, COLUMN_AUTOFIT, uCurrentNbCheckpoints,
@@ -253,10 +266,19 @@ void DoTelemetry(STelemetryData* pTelemetry)
 		
 		if (uCheckpointsPerLap != 0)
 		{
+			if (pTelemetry->Current.Header.Version >= 3)
+			{
+				uCheckpointsPerLap++;	// In Trackmania 2020, the finish is not a checkpoint
+
+				if (uNumberOfLaps == 0)	// Since Trackmania 2020 supports this data field,
+					uNumberOfLaps = 1;	// we can set it to 1 if the value is 0 (no lap race)
+			}
+			
 			uCurrentLap = uCurrentNbCheckpoints / uCheckpointsPerLap;
 			// Correct the lap counter by one, except on restart and when crossing the finish line
 			if (uCurrentNbCheckpoints != 0 && (uCurrentLap < uNumberOfLaps || uNumberOfLaps == 0))
 				uCurrentLap++;
+			
 			// Keep the number of laps driven after the race is over
 			if (uCurrentLap < uLapCount)
 				uCurrentLap = uLapCount;
@@ -298,11 +320,14 @@ void DoTelemetry(STelemetryData* pTelemetry)
 	// Player model
 	if (strcmp(pTelemetry->Current.Game.GameplayVariant, pTelemetry->Previous.Game.GameplayVariant) != 0)
 	{
-		MultiByteToWideChar(CP_UTF8, 0, pTelemetry->Current.Game.GameplayVariant, -1, szText, _countof(szText));
-		StatusBar_SetText(hwndStatusBar, SBP_PLAYERMODEL, szText, TRUE);
+		if (strcmp(pTelemetry->Current.Game.GameplayVariant, "Unassigned") != 0)
+		{
+			MultiByteToWideChar(CP_UTF8, 0, pTelemetry->Current.Game.GameplayVariant, -1, szText, _countof(szText));
+			StatusBar_SetText(hwndStatusBar, SBP_PLAYERMODEL, szText, TRUE);
 
-		strncpy(pTelemetry->Previous.Game.GameplayVariant, pTelemetry->Current.Game.GameplayVariant,
-			_countof(pTelemetry->Previous.Game.GameplayVariant));
+			strncpy(pTelemetry->Previous.Game.GameplayVariant, pTelemetry->Current.Game.GameplayVariant,
+				_countof(pTelemetry->Previous.Game.GameplayVariant));
+		}
 	}
 
 	// Race time
