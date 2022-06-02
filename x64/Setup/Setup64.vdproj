@@ -159,15 +159,15 @@
         {
         "Name" = "8:Microsoft Visual Studio"
         "ProductName" = "8:Telemetry Monitor"
-        "ProductCode" = "8:{01E38D33-9583-4F58-BB80-65B947A0870C}"
-        "PackageCode" = "8:{6ABC2094-7338-4B3C-859D-5CC1F246BD2C}"
+        "ProductCode" = "8:{001ADA82-C6D8-475D-9816-5CF4F964E166}"
+        "PackageCode" = "8:{9302EA9B-987D-44EE-A266-09F6FE5E75D7}"
         "UpgradeCode" = "8:{00BD5903-7DBA-499A-9EBA-FB56272E257D}"
         "AspNetVersion" = "8:4.0.30319.0"
         "RestartWWWService" = "11:FALSE"
         "RemovePreviousVersions" = "11:TRUE"
         "DetectNewerInstalledVersion" = "11:TRUE"
         "InstallAllUsers" = "11:FALSE"
-        "ProductVersion" = "8:1.2.2"
+        "ProductVersion" = "8:1.2.3"
         "Manufacturer" = "8:Electron"
         "ARPHELPTELEPHONE" = "8:"
         "ARPHELPLINK" = "8:http://www.wolfgang-rolke.de/gbxdump/"
@@ -175,7 +175,7 @@
         "Subject" = "8:TrackMania Telemetry Monitor (64-bit)"
         "ARPCONTACT" = "8:Electron"
         "Keywords" = "8:Installer,MSI,TMTelemetry,x64"
-        "ARPCOMMENTS" = "8:Copyright (c) 2017-2019 by Electron"
+        "ARPCOMMENTS" = "8:This software is in the public domain."
         "ARPURLINFOABOUT" = "8:http://www.wolfgang-rolke.de/gbxdump/"
         "ARPPRODUCTICON" = "8:_65858AAF14D941598EF861AABF1E2E6B"
         "ARPIconIndex" = "3:102"
@@ -262,7 +262,7 @@
                                             "Condition" = "8:"
                                             "Transitive" = "11:FALSE"
                                             "ValueTypes" = "3:3"
-                                            "Value" = "3:32736"
+                                            "Value" = "3:32224"
                                             }
                                             "{ADCFDA98-8FDD-45E4-90BC-E3D20B029870}:_34DE3363F08841DBAF0C61073B9C7C8D"
                                             {
@@ -322,7 +322,7 @@
             {
             "Name" = "8:Telemetry Monitor"
             "Arguments" = "8:"
-            "Description" = "8:Telemetry Monitor for Maniaplanet and Trackmania Turbo"
+            "Description" = "8:Telemetry Monitor for Trackmania and Maniaplanet"
             "ShowCmd" = "3:1"
             "IconIndex" = "3:102"
             "Transitive" = "11:FALSE"
@@ -428,7 +428,7 @@
                             "ContextData" = "8:"
                             "Attributes" = "3:0"
                             "Setting" = "3:2"
-                            "Value" = "8:TrackMania Telemetry Monitor, Copyright © 2017-2019 by Electron"
+                            "Value" = "8:TrackMania Telemetry Monitor is in the public domain."
                             "DefaultValue" = "8:#1202"
                             "UsePlugInResources" = "11:TRUE"
                             }
@@ -535,7 +535,7 @@
                             "ContextData" = "8:"
                             "Attributes" = "3:0"
                             "Setting" = "3:2"
-                            "Value" = "8:TrackMania Telemetry Monitor, Copyright © 2017-2019 by Electron"
+                            "Value" = "8:TrackMania Telemetry Monitor is in the public domain."
                             "DefaultValue" = "8:#1202"
                             "UsePlugInResources" = "11:TRUE"
                             }
