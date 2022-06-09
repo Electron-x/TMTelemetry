@@ -99,6 +99,11 @@ void DoTelemetry(STelemetryData* pTelemetry)
 		pTelemetry->Previous.Game.State = pTelemetry->Current.Game.State;
 	}
 
+	// Trackmania 2020 updates the telemetry data at least once while we are in the menu.
+	// Let's ignore them.
+	if (pTelemetry->Current.Game.State == STelemetry::EState_Menus)
+		return;
+
 	// Race state
 	if (pTelemetry->Current.Race.State != pTelemetry->Previous.Race.State)
 	{
@@ -268,7 +273,7 @@ void DoTelemetry(STelemetryData* pTelemetry)
 		{
 			if (pTelemetry->Current.Header.Version >= 3)
 			{
-				uCheckpointsPerLap++;	// In Trackmania 2020, the finish is not a checkpoint
+				uCheckpointsPerLap++;	// In Trackmania 2020, the finish is not a checkpoint (bug?)
 
 				if (uNumberOfLaps == 0)	// Since Trackmania 2020 supports this data field,
 					uNumberOfLaps = 1;	// we can set it to 1 if the value is 0 (no lap race)
@@ -575,9 +580,9 @@ void InitTelemetryData(STelemetryData* pTelemetry)
 	memset(&pTelemetry->Previous, 0, sizeof(pTelemetry->Previous));
 
 	// Set all variables that can be zero at startup to a different value
-	pTelemetry->Previous.Game.State = (STelemetry::EGameState)-1;
+	pTelemetry->Previous.Game.State = (STelemetry::EGameState)-16;
 
-	pTelemetry->Previous.Race.State = (STelemetry::ERaceState)-1;
+	pTelemetry->Previous.Race.State = (STelemetry::ERaceState)-16;
 	pTelemetry->Previous.Race.Time = (Nat32)-2;	// -1 is a regular value
 	pTelemetry->Previous.Race.NbRespawns = (Nat32)-2;	// -1 is a regular value
 	pTelemetry->Previous.Race.NbCheckpoints = (Nat32)-1;
