@@ -6,7 +6,7 @@
 namespace NManiaPlanet {
 
 enum {
-    ECurVersion = 2,
+    ECurVersion = 3,
 };
 
 typedef unsigned int Nat32;
@@ -16,7 +16,7 @@ struct Vec3 {
     float x,y,z;
 };
 struct Quat {
-	float w,x,y,z;
+    float w,x,y,z;
 };
 
 struct STelemetry {
@@ -38,7 +38,7 @@ struct STelemetry {
     };
     struct SGameState {
         EGameState  State;
-        char        GameplayVariant[64];    // player model 'StadiumCar', 'CanyonCar', ....
+        char        GameplayVariant[64];    // environment name 'stadium' 'canyon', ....
         char        MapId[64];
         char        MapName[256];
         char        __future__[128];
@@ -49,9 +49,11 @@ struct STelemetry {
         Nat32       NbRespawns;
         Nat32       NbCheckpoints;
         Nat32       CheckpointTimes[125];
-        Nat32       NbCheckpointsPerLap;    // new since Maniaplanet update 2019-10-10; not supported by Trackmania Turbo.
-        Nat32       NbLaps;                 // new since Maniaplanet update 2019-10-10; not supported by Trackmania Turbo.
-        char        __future__[24];
+        Nat32       NbCheckpointsPerLap;
+        Nat32       NbLapsPerRace;
+        Nat32       Timestamp;
+        Nat32       StartTimestamp;         // timestamp when the State will change to 'Running', or has changed when after the racestart.
+        char        __future__[16];
     };
     struct SObjectState {
         Nat32       Timestamp;
@@ -89,8 +91,12 @@ struct STelemetry {
         Bool        IsLightTrails;
         Bool        IsLightsOn;
         Bool        IsFlying;               // long time since touching ground.
+        Bool        IsOnIce;
 
-        char        __future__[32];
+        Nat32       Handicap;               // bit mask: [reserved..] [NoGrip] [NoSteering] [NoBrakes] [EngineForcedOn] [EngineForcedOff]
+        float       BoostRatio;             // 1 thrusters starting/full .... 0 -> finished
+
+        char        __future__[20];
     };
     struct SDeviceState {   // VrChair state.
         Vec3        Euler;                  // yaw, pitch, roll  (order: pitch, roll, yaw)
@@ -98,6 +104,15 @@ struct STelemetry {
         float       CenteredAltitude;       // Altitude accumulated + recentered
 
         char        __future__[32];
+    };
+
+    struct SPlayerState {
+        Bool        IsLocalPlayer;          // Is the locally controlled player, or else it is a a remote player we're spectating, or a replay.
+        char        Trigram[4];             // 'TMN'
+        char        DossardNumber[4];       // '01'
+        float       Hue;
+        char        UserName[256];
+        char        __future__[28];
     };
 
     SHeader         Header;
@@ -108,9 +123,19 @@ struct STelemetry {
     SObjectState    Object;
     SVehicleState   Vehicle;
     SDeviceState    Device;
+    SPlayerState    Player;
 };
 
 }
+
+
+// -----------------------------------------------
+// Changelog:
+//   Version 3 is a superset of Version 2.
+//   New fields are:
+//     Race.Timestamp, Race.StartTimestamp
+//     Vehicle.IsOnIce, Vehicle.Handicap, Vehicle.BoostRatio
+//     Player.*
 
 #endif // _MANIAPLANET_TELEMETRY_H
 

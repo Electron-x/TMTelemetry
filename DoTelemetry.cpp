@@ -139,7 +139,7 @@ void DoTelemetry(STelemetryData* pTelemetry)
 			{
 				// Reset the lap counter
 				uLapCount = 0;
-				StatusBar_SetLapCount(hwndStatusBar, SBP_LAPS, uLapCount, pTelemetry->Current.Race.NbLaps);
+				StatusBar_SetLapCount(hwndStatusBar, SBP_LAPS, uLapCount, pTelemetry->Current.Race.NbLapsPerRace);
 			}
 
 			// Handle the start of a race
@@ -165,7 +165,7 @@ void DoTelemetry(STelemetryData* pTelemetry)
 
 				// Set the lap counter to 1 (the number of checkpoints crossed remains 0 at start)
 				uLapCount = 1;
-				StatusBar_SetLapCount(hwndStatusBar, SBP_LAPS, uLapCount, pTelemetry->Current.Race.NbLaps);
+				StatusBar_SetLapCount(hwndStatusBar, SBP_LAPS, uLapCount, pTelemetry->Current.Race.NbLapsPerRace);
 
 				// Add a new race to the list-view control and increment the number of attempts
 				if (ListView_AddRace(hwndListView, nRaceNumber + 1, COLUMN_AUTOFIT) != -1)
@@ -266,7 +266,7 @@ void DoTelemetry(STelemetryData* pTelemetry)
 
 		// Update the lap counter after crossing the start/finish line
 		Nat32 uCurrentLap = uLapCount;
-		Nat32 uNumberOfLaps = pTelemetry->Current.Race.NbLaps;	// Could be zero
+		Nat32 uNumberOfLaps = pTelemetry->Current.Race.NbLapsPerRace;	// Could be zero
 		Nat32 uCheckpointsPerLap = pTelemetry->Current.Race.NbCheckpointsPerLap;	// Always 0 with Trackmania Turbo
 		
 		if (uCheckpointsPerLap != 0)
@@ -521,7 +521,7 @@ void DoTelemetry(STelemetryData* pTelemetry)
 
 			// Reset the lap counter
 			uLapCount = 0;
-			StatusBar_SetLapCount(hwndStatusBar, SBP_LAPS, uLapCount, pTelemetry->Current.Race.NbLaps);
+			StatusBar_SetLapCount(hwndStatusBar, SBP_LAPS, uLapCount, pTelemetry->Current.Race.NbLapsPerRace);
 		}
 
 		lstrcpynA(pTelemetry->Previous.Game.MapId, pTelemetry->Current.Game.MapId, _countof(pTelemetry->Previous.Game.MapId));
