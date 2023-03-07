@@ -108,6 +108,7 @@ int APIENTRY _tWinMain(__in HINSTANCE hInstance, __in_opt HINSTANCE hPrevInstanc
 int DoMainLoop(void)
 {
 	MSG msg;
+	BOOL bQuit = FALSE;
 	HANDLE hMapFile = NULL;
 	void* pBufView = NULL;
 	const volatile STelemetry* Shared = NULL;
@@ -134,6 +135,12 @@ int DoMainLoop(void)
 		// so we can process the telemetry data
 		while (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE))
 		{
+			if (msg.message == WM_QUIT)
+			{
+				bQuit = TRUE;
+				break;
+			}
+
 			// Send all translated menu commands to the main window
 			HWND hwndTranslate = msg.hwnd;
 			if (hwndTranslate == hwndListView || hwndTranslate == hwndStatusBar)
@@ -147,7 +154,7 @@ int DoMainLoop(void)
 		}
 
 		// Exit main loop by request of the application
-		if (msg.message == WM_QUIT)
+		if (bQuit)
 			break;
 
 		// Get access to the telemetry data
@@ -846,7 +853,7 @@ void WndProc_OnSize(HWND hwnd, UINT state, int cx, int cy)
 
 void WndProc_OnWinIniChange(HWND hwnd, LPCTSTR lpszSectionName)
 {
-	if (_tcscmp(lpszSectionName, TEXT("intl")) == 0)
+	if (lpszSectionName != NULL && _tcscmp(lpszSectionName, TEXT("intl")) == 0)
 		GetLocaleInfoEx(LOCALE_NAME_USER_DEFAULT, LOCALE_IMEASURE | LOCALE_RETURN_NUMBER,
 			(LPWSTR)&bMilesPerHour, sizeof(bMilesPerHour) / sizeof(WCHAR));
 }
