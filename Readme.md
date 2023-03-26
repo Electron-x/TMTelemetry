@@ -13,8 +13,9 @@ Also no gauges or line graphs are displayed.
 
 The source code is provided as an example and should show how to access the game data
 via the [telemetry interface](https://wiki.xaseco.org/wiki/Telemetry_interface) of
-[Maniaplanet 4](https://www.maniaplanet.com/) or [Trackmania Turbo](https://www.ubisoft.com/en-gb/game/trackmania-turbo/).
+[Maniaplanet 4](https://www.maniaplanet.com/), [Trackmania](https://www.trackmania.com/)
+or [Trackmania Turbo](https://www.ubisoft.com/en-gb/game/trackmania-turbo/).
 
-This is a generic C/C++ Win32 desktop project created with Visual Studio 2017.
+This is a generic C/C++ Win32 desktop project created with Visual Studio 2022.
 Since no external libraries are used, the project should be built without problems.
 An older VS2005 project file (.vcproj) and two Visual Studio Installer projects for x86 and x64 are also included.
