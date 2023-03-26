@@ -66,7 +66,7 @@ void DoTelemetry(STelemetryData* pTelemetry)
 
 			// Clear the parts of the status bar that contain race data
 			StatusBar_SetText(hwndStatusBar, SBP_GAMESTATE, szGameMenus);
-			for (int i = SBP_RACESTATE; i <= SBP_BRAKING; i++)
+			for (int i = SBP_RACESTATE; i <= SBP_LAST; i++)
 				StatusBar_SetText(hwndStatusBar, i, TEXT(""));
 
 			if (hwndTBSteering != NULL)
@@ -103,6 +103,65 @@ void DoTelemetry(STelemetryData* pTelemetry)
 	// Let's ignore them.
 	if (pTelemetry->Current.Game.State == STelemetry::EState_Menus)
 		return;
+
+	// Player state
+	if (pTelemetry->Current.Header.Version >= 3)
+	{
+		BOOL bIsUpdated = FALSE;
+
+		// Get name, trigram and dossard number of the player for whom the live data is displayed in the status bar
+		if (strcmp(pTelemetry->Current.Player.UserName, pTelemetry->Previous.Player.UserName) != 0)
+		{
+			bIsUpdated = TRUE;
+			strncpy(pTelemetry->Previous.Player.UserName, pTelemetry->Current.Player.UserName,
+				_countof(pTelemetry->Previous.Player.UserName));
+		}
+
+		if (strcmp(pTelemetry->Current.Player.Trigram, pTelemetry->Previous.Player.Trigram) != 0)
+		{
+			bIsUpdated = TRUE;
+			strncpy(pTelemetry->Previous.Player.Trigram, pTelemetry->Current.Player.Trigram,
+				_countof(pTelemetry->Previous.Player.Trigram));
+		}
+
+		if (strcmp(pTelemetry->Current.Player.DossardNumber, pTelemetry->Previous.Player.DossardNumber) != 0)
+		{
+			bIsUpdated = TRUE;
+			strncpy(pTelemetry->Previous.Player.DossardNumber, pTelemetry->Current.Player.DossardNumber,
+				_countof(pTelemetry->Previous.Player.DossardNumber));
+		}
+
+		if (bIsUpdated)
+		{	// Username, trigram or dossard number has changed
+			TCHAR szPlayerState[MAX_CONTROLTEXT];
+
+			// Convert the received UTF-8 string to Unicode UTF-16
+			MultiByteToWideChar(CP_UTF8, 0, pTelemetry->Current.Player.UserName, -1, szPlayerState, _countof(szPlayerState));
+			_tcsncpy(szText, szPlayerState, _countof(szText));
+
+			if (szText[0] != TEXT('\0'))
+			{
+				char szTrigram[4];
+				Utf8ToUpperAscii(pTelemetry->Current.Player.Trigram, szTrigram, _countof(szTrigram));
+				MultiByteToWideChar(CP_UTF8, 0, szTrigram, -1, szPlayerState, _countof(szPlayerState));
+				if (szPlayerState[0] != TEXT('\0'))
+				{
+					_tcsncat(szText, TEXT(" "), _countof(szText) - _tcslen(szText) - 1);
+					_tcsncat(szText, szPlayerState, _countof(szText) - _tcslen(szText) - 1);
+				}
+
+				MultiByteToWideChar(CP_UTF8, 0, pTelemetry->Current.Player.DossardNumber, -1, szPlayerState, _countof(szPlayerState));
+				if (szPlayerState[0] != TEXT('\0'))
+				{
+					_tcsncat(szText, TEXT(" "), _countof(szText) - _tcslen(szText) - 1);
+					_tcsncat(szText, szPlayerState, _countof(szText) - _tcslen(szText) - 1);
+				}
+			}
+
+			// Display the player info in the last pane of the status bar
+			StatusBar_SetText(hwndStatusBar, SBP_LAST, szText);
+		}
+	}
 
 	// Race state
 	if (pTelemetry->Current.Race.State != pTelemetry->Previous.Race.State)
@@ -310,7 +369,6 @@ void DoTelemetry(STelemetryData* pTelemetry)
 	// Map name
 	if (strcmp(pTelemetry->Current.Game.MapName, pTelemetry->Previous.Game.MapName) != 0)
 	{
-		// Convert the received UTF-8 string to Unicode UTF-16
 		MultiByteToWideChar(CP_UTF8, 0, pTelemetry->Current.Game.MapName, -1, szText, _countof(szText));
 		// If a new map name exists, update the file name for data export
 		if (_tcslen(szText) > 0)
