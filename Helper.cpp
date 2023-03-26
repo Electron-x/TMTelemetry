@@ -7,6 +7,31 @@
 static int nColumnIndex = 0;
 
 
+SIZE_T Utf8ToUpperAscii(PCSTR pszUtf8, PSTR pszAscii, SIZE_T cchAsciiLen)
+{
+	if (pszUtf8 == NULL || pszAscii == NULL || cchAsciiLen == 0)
+		return 0;
+
+	SIZE_T count = strlen(pszUtf8);
+	if (cchAsciiLen - 1 < count)
+		count = cchAsciiLen - 1;
+
+	SIZE_T i;
+
+	for (i = 0; i < count; i++)
+	{
+		if (pszUtf8[i] < 0)
+			break;
+
+		pszAscii[i] = toupper(pszUtf8[i]);
+	}
+
+	pszAscii[i] = '\0';
+
+	return i;
+}
+
+
 BOOL FormatTime(LPTSTR lpszTime, SIZE_T cchStringLen, int nTime)
 {
 	if (lpszTime == NULL)

@@ -56,6 +56,7 @@ const TCHAR szFullspeed[] = TEXT("Fullspeed");
 const TCHAR szWheelSlip[] = TEXT("Wheel Slip");
 
 // General functions
+SIZE_T Utf8ToUpperAscii(PCSTR pszUtf8, PSTR pszAscii, SIZE_T cchAsciiLen);
 BOOL FormatTime(LPTSTR lpszTime, SIZE_T cchStringLen, int nTime);
 BOOL GetFileName(HWND hDlg, LPTSTR lpszFileName, SIZE_T cchStringLen, LPDWORD lpdwFilterIndex, BOOL bSave = FALSE);
 
